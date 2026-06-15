@@ -1,0 +1,166 @@
+﻿@page "/feed"
+@rendermode InteractiveWebAssembly
+@using SocialNet.Client.Client.Services
+@inject PostService PostService
+@inject NavigationManager Navigation
+
+@inject LocalStorageService LocalStorage
+
+<h3>Feed</h3>
+
+@if (!string.IsNullOrEmpty(currentUsername))
+{
+    <p>შესული ხარ როგორც: <strong>@currentUsername</strong></p>
+}
+
+<div style="margin:10px; padding:10px; border:1px solid gray;">
+    <textarea @bind="newPostContent" placeholder="რაზე ფიქრობ?"></textarea>
+    <br />
+    <button @onclick="CreatePost">გამოქვეყნება</button>
+</div>
+
+@if (posts == null)
+{
+    <p>იტვირთება...</p>
+}
+else if (!posts.Any())
+{
+    <p>პოსტები არ არის!</p>
+}
+else
+{
+    @foreach (var post in posts)
+    {
+        <div style="border:1px solid gray; margin:10px; padding:10px;">
+            <strong>@post.UserName</strong>
+            <p>@post.Content</p>
+            <small>@post.CreatedAt.ToString("dd/MM/yyyy HH:mm")</small>
+            <br />
+            <button @onclick="() => ToggleLike(post.Id)">❤️ @post.LikesCount ლაიქი</button>
+            <button @onclick="() => ToggleComments(post.Id)">💬 კომენტარი</button>
+
+            @if (openComments.Contains(post.Id))
+            {
+                <div style="margin-top:10px; padding:10px; background:#f5f5f5;">
+                    @if (comments.ContainsKey(post.Id))
+                    {
+                        @foreach (var comment in comments[post.Id])
+                        {
+                            <div style="border-bottom:1px solid #ddd; padding:5px;">
+                                <strong>@comment.UserName:</strong>
+                                <span>@comment.Content</span>
+                            </div>
+                        }
+                    }
+                    <div style="margin-top:10px;">
+                        <input value="@(newComments.ContainsKey(post.Id) ? newComments[post.Id] : "")"
+                               @onchange="e => newComments[post.Id] = e.Value?.ToString() ?? string.Empty"
+                               placeholder="კომენტარი..." />
+                        <button @onclick="() => AddComment(post.Id)">გაგზავნა</button>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+}
+
+@code {
+    private List<PostDto>? posts;
+    private string newPostContent = "";
+    private HashSet<Guid> openComments = new();
+    private Dictionary<Guid, List<CommentDto>> comments = new();
+    private Dictionary<Guid, string> newComments = new();
+
+
+    private string? currentUsername;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            currentUsername = await LocalStorage.GetItemAsync("username");
+            StateHasChanged();
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        posts = await PostService.GetAllPostsAsync();
+        if (posts != null)
+        {
+            foreach (var post in posts)
+            {
+                newComments[post.Id] = "";
+            }
+        }
+    }
+
+    private async Task CreatePost()
+    {
+        if (string.IsNullOrWhiteSpace(newPostContent)) return;
+        var result = await PostService.CreatePostAsync(newPostContent);
+        if (result)
+        {
+            newPostContent = "";
+            posts = await PostService.GetAllPostsAsync();
+            if (posts != null)
+            {
+                foreach (var post in posts)
+                {
+                    if (!newComments.ContainsKey(post.Id))
+                        newComments[post.Id] = "";
+                }
+            }
+        }
+    }
+
+
+    private async Task ToggleLike(Guid postId)
+    {
+        try
+        {
+            await PostService.ToggleLikeAsync(postId);
+            posts = await PostService.GetAllPostsAsync();
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Like error: {ex.Message}");
+        }
+    }
+
+
+    private async Task ToggleComments(Guid postId)
+    {
+        if (!newComments.ContainsKey(postId))
+            newComments[postId] = "";
+
+        if (openComments.Contains(postId))
+        {
+            openComments.Remove(postId);
+        }
+        else
+        {
+            openComments.Add(postId);
+            if (!comments.ContainsKey(postId))
+            {
+                var result = await PostService.GetCommentsAsync(postId);
+                comments[postId] = result ?? new();
+            }
+        }
+    }
+
+    private async Task AddComment(Guid postId)
+    {
+        if (!newComments.ContainsKey(postId)) return;
+        if (string.IsNullOrWhiteSpace(newComments[postId])) return;
+
+        var result = await PostService.AddCommentAsync(postId, newComments[postId]);
+        if (result)
+        {
+            newComments[postId] = "";
+            var updated = await PostService.GetCommentsAsync(postId);
+            comments[postId] = updated ?? new();
+        }
+    }
+}

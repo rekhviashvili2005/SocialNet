@@ -1,0 +1,18 @@
+﻿@page "/logout"
+@rendermode InteractiveWebAssembly
+@using SocialNet.Client.Client.Services
+@inject LocalStorageService LocalStorage
+@inject NavigationManager Navigation
+<p>გამოსვლა...</p>
+@code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LocalStorage.RemoveItemAsync("token");
+            await LocalStorage.RemoveItemAsync("userId");
+            await LocalStorage.RemoveItemAsync("username");
+            Navigation.NavigateTo("/login", forceLoad: true);
+        }
+    }
+}

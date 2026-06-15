@@ -1,0 +1,138 @@
+﻿@page "/profile/{username}"
+@rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
+@* @rendermode InteractiveWebAssembly *@
+@using SocialNet.Client.Client.Services
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject FollowService FollowService
+@inject LocalStorageService LocalStorage
+
+<h3>პროფილი</h3>
+@if (!isLoaded)
+{
+    <p>იტვირთება...</p>
+}
+else if (profile == null)
+{
+    <p>მომხმარებელი ვერ მოიძებნა!</p>
+}
+else
+{
+    <div style="border:1px solid gray; padding:20px; margin:10px;">
+        <h4>@profile.DisplayName</h4>
+        <p>@("@")@profile.UserName</p>
+        @if (!string.IsNullOrEmpty(profile.Bio))
+        {
+            <p>@profile.Bio</p>
+        }
+        <p>პოსტები: @profile.PostsCount</p>
+        <p>ფოლოუერები: @followersCount | მიჰყვება: @followingCount</p>
+        @if (!string.IsNullOrEmpty(currentUserId))
+        {
+            <button @onclick="ToggleFollow">
+                @(isFollowing ? "followers" : "following")
+            </button>
+        }
+    </div>
+    <h4>პოსტები:</h4>
+    @foreach (var post in posts)
+    {
+        <div style="border:1px solid gray; margin:10px; padding:10px;">
+            <p>@post.Content</p>
+            <small>@post.CreatedAt.ToString("dd/MM/yyyy HH:mm")</small>
+        </div>
+    }
+    <h4>ფოლოუერები:</h4>
+    @foreach (var f in followers)
+    {
+        <p>@f</p>
+    }
+    <h4>მიჰყვება:</h4>
+    @foreach (var f in following)
+    {
+        <p>@f</p>
+    }
+}
+
+@code {
+    [Parameter]
+    public string? username { get; set; }
+    private UserProfileDto? profile;
+    private List<PostDto> posts = new();
+    private bool isLoaded = false;
+    private bool isFollowing = false;
+    private int followersCount = 0;
+    private int followingCount = 0;
+    private List<string> followers = new();
+    private List<string> following = new();
+    private string? currentUserId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (username == null) return;
+        try
+        {
+            var profileTask = Http.GetFromJsonAsync<UserProfileDto>($"api/Users/{username}");
+            var postsTask = Http.GetFromJsonAsync<List<PostDto>>($"api/Users/{username}/posts");
+
+            await Task.WhenAll(profileTask, postsTask);
+
+            profile = profileTask.Result;
+            posts = postsTask.Result ?? new();
+
+            if (profile != null)
+            {
+                var isFollowingTask = FollowService.IsFollowingAsync(profile.Id);
+                var followersCountTask = FollowService.GetFollowersCountAsync(profile.Id);
+                var followingCountTask = FollowService.GetFollowingCountAsync(profile.Id);
+                var followersTask = FollowService.GetFollowersAsync(profile.Id);
+                var followingTask = FollowService.GetFollowingAsync(profile.Id);
+
+                await Task.WhenAll(isFollowingTask, followersCountTask, followingCountTask, followersTask, followingTask);
+
+                isFollowing = isFollowingTask.Result;
+                followersCount = followersCountTask.Result;
+                followingCount = followingCountTask.Result;
+                followers = followersTask.Result;
+                following = followingTask.Result;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+            profile = null;
+        }
+        finally
+        {
+            isLoaded = true;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            currentUserId = await LocalStorage.GetItemAsync("userId");
+            StateHasChanged();
+        }
+    }
+
+    private async Task ToggleFollow()
+    {
+        if (profile == null) return;
+        if (isFollowing)
+        {
+            await FollowService.UnFollowAsync(profile.Id);
+            isFollowing = false;
+            followersCount--;
+            followers = await FollowService.GetFollowersAsync(profile.Id);
+        }
+        else
+        {
+            await FollowService.FollowAsync(profile.Id);
+            isFollowing = true;
+            followersCount++;
+            followers = await FollowService.GetFollowersAsync(profile.Id);
+        }
+    }
+}
