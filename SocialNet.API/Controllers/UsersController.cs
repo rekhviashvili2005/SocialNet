@@ -44,11 +44,30 @@ namespace SocialNet.API.Controllers
         }
 
 
+        //[HttpGet("{username}/posts")]
+        //public async Task<IActionResult> GetUserPosts(string username)
+        //{
+        //    var posts = await _userService.GetUserPostsAsync(username);
+        //    return Ok(posts);
+        //}
+
+
         [HttpGet("{username}/posts")]
         public async Task<IActionResult> GetUserPosts(string username)
         {
-            var posts = await _userService.GetUserPostsAsync(username);
+            var currentUserId = User.FindFirstValue("uid");
+            var posts = await _userService.GetUserPostsAsync(username, currentUserId);
             return Ok(posts);
+        }
+
+
+
+        [HttpGet("search")]
+        public async Task<IActionResult> Search([FromQuery] string query)
+        {
+            if (string.IsNullOrWhiteSpace(query)) return Ok(new List<UserSearchDto>());
+            var users = await _userService.SearchUsersAsync(query);
+            return Ok(users);
         }
 
 

@@ -5,23 +5,60 @@
 @inject LocalStorageService LocalStorage
 @inject NavigationManager Navigation
 
-<h3>შესვლა</h3>
+<div style="min-height:100vh; background:#0f1117; display:flex; align-items:center; justify-content:center; font-family:system-ui,sans-serif; padding:2rem;">
+    <div style="background:#1a1d2e; border:0.5px solid rgba(255,255,255,0.1); border-radius:16px; padding:2.5rem; width:100%; max-width:400px;">
 
-<div>
-    <input @bind="email" placeholder="Email" type="email" />
+        <!-- Logo -->
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:2rem; justify-content:center;">
+            <div style="width:40px; height:40px; background:linear-gradient(135deg,#6366f1,#8b5cf6); border-radius:10px; display:flex; align-items:center; justify-content:center; color:#fff; font-size:18px; font-weight:700;">S</div>
+            <span style="font-size:22px; font-weight:600; color:#fff; letter-spacing:-0.5px;">SocialNet</span>
+        </div>
+
+        <!-- Heading -->
+        <h3 style="font-size:22px; font-weight:600; color:#fff; margin:0 0 6px; text-align:center;">კეთილი იყოს დაბრუნება</h3>
+        <p style="font-size:14px; color:rgba(255,255,255,0.45); text-align:center; margin:0 0 2rem;">შედი შენს ანგარიშზე</p>
+
+        <!-- Error -->
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div style="background:rgba(239,68,68,0.1); border:0.5px solid rgba(239,68,68,0.3); border-radius:8px; padding:10px 14px; font-size:13px; color:#fca5a5; margin-bottom:14px; display:flex; align-items:center; gap:8px;">
+                ⚠ @errorMessage
+            </div>
+        }
+
+        <!-- Email -->
+        <div style="margin-bottom:14px;">
+            <label style="font-size:12px; font-weight:500; color:rgba(255,255,255,0.55); letter-spacing:0.5px; display:block; margin-bottom:6px;">EMAIL</label>
+            <input @bind="email" type="email" placeholder="example@gmail.com"
+                   style="width:100%; box-sizing:border-box; background:rgba(255,255,255,0.05); border:0.5px solid rgba(255,255,255,0.12); border-radius:10px; padding:12px 14px; font-size:15px; color:#fff; outline:none;" />
+        </div>
+
+        <!-- Password -->
+        <div style="margin-bottom:6px;">
+            <label style="font-size:12px; font-weight:500; color:rgba(255,255,255,0.55); letter-spacing:0.5px; display:block; margin-bottom:6px;">პაროლი</label>
+            <input @bind="password" type="password" placeholder="••••••••"
+                   style="width:100%; box-sizing:border-box; background:rgba(255,255,255,0.05); border:0.5px solid rgba(255,255,255,0.12); border-radius:10px; padding:12px 14px; font-size:15px; color:#fff; outline:none;" />
+        </div>
+
+        <!-- Submit -->
+        <button @onclick="HandleLogin"
+                style="width:100%; margin-top:18px; padding:13px; background:linear-gradient(135deg,#6366f1,#8b5cf6); color:#fff; font-size:15px; font-weight:500; border:none; border-radius:10px; cursor:pointer; letter-spacing:0.2px;">
+            შესვლა
+        </button>
+
+        <!-- Divider -->
+        <div style="display:flex; align-items:center; gap:10px; margin:20px 0;">
+            <div style="flex:1; height:0.5px; background:rgba(255,255,255,0.1);"></div>
+            <span style="font-size:13px; color:rgba(255,255,255,0.3);">ან</span>
+            <div style="flex:1; height:0.5px; background:rgba(255,255,255,0.1);"></div>
+        </div>
+
+        <!-- Register link -->
+        <p style="text-align:center; font-size:14px; color:rgba(255,255,255,0.4); margin:0;">
+            ანგარიში არ გაქვს? <a href="/register" style="color:#818cf8; text-decoration:none; font-weight:500;">დარეგისტრირდი</a>
+        </p>
+    </div>
 </div>
-<div>
-    <input @bind="password" placeholder="პაროლი" type="password" />
-</div>
-
-@if (!string.IsNullOrEmpty(errorMessage))
-{
-    <p style="color:red">@errorMessage</p>
-}
-
-<button @onclick="HandleLogin">შესვლა</button>
-<br />
-<a href="/register">ანგარიში არ გაქვს? დარეგისტრირდი!</a>
 
 @code {
     private string email = "";
@@ -35,9 +72,8 @@
         {
             var token = await LocalStorage.GetItemAsync("token");
             if (token != null)
-            {
                 Navigation.NavigateTo("/feed");
-            }
+
             isReady = true;
             StateHasChanged();
         }
@@ -46,10 +82,9 @@
     private async Task HandleLogin()
     {
         if (!isReady) return;
-
         errorMessage = "";
-        var token = await AuthService.LoginAsync(email, password);
 
+        var token = await AuthService.LoginAsync(email, password);
         if (token == null)
         {
             errorMessage = "Email ან პაროლი არასწორია!";

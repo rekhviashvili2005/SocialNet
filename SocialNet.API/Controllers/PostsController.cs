@@ -26,7 +26,10 @@ public class PostsController : ControllerBase
     [HttpGet]
     public async Task<IActionResult> GetAll()
     {
-        var posts = await _postService.GetAllPostsAsync();
+        //var posts = await _postService.GetAllPostsAsync();
+        //return Ok(posts);
+        var userId = User.FindFirstValue("uid");
+        var posts = await _postService.GetAllPostsAsync(userId);
         return Ok(posts);
     }
 
@@ -81,5 +84,16 @@ public class PostsController : ControllerBase
 
         var result = await _postService.DeletePostAsync(id, userId);
         return Ok("პოსტი წაიშალა");
+    }
+
+
+    [HttpGet("hashtag/{tag}")]
+    public async Task<IActionResult> GetByHashtag(string tag)
+    {
+        //var posts = await _postService.GetPostsByHashtagAsync(tag);
+        //return Ok(posts);
+        var userId = User.FindFirstValue("uid");
+        var posts = await _postService.GetPostsByHashtagAsync(tag, userId);
+        return Ok(posts);
     }
 }

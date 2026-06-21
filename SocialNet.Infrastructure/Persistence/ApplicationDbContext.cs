@@ -24,9 +24,24 @@ namespace SocialNet.Infrastructure.Persistence
 
         public DbSet<Follow> Follows => Set<Follow>();
 
+
+
+        public DbSet<PostHashtag> PostHashtags => Set<PostHashtag>(); 
+
+
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
+
+
+
+            builder.Entity<PostHashtag>()
+                .HasOne(h => h.Post)
+                .WithMany(p => p.Hashtags)
+                .HasForeignKey(h => h.PostId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+
 
             builder.Entity<Post>()
                 .HasOne<ApplicationUser>()

@@ -2,10 +2,10 @@
 @using SocialNet.Client.Client.Services
 @inject LocalStorageService LocalStorage
 @inject NavigationManager Navigation
-
 @if (isLoggedIn)
 {
     <span class="nav-link text-white">@username</span>
+    <NavLink class="nav-link" href="@($"profile/{username}")">ჩემი პროფილი</NavLink>
     <NavLink class="nav-link" href="logout">გამოსვლა</NavLink>
 }
 else
@@ -13,11 +13,9 @@ else
     <NavLink class="nav-link" href="login">შესვლა</NavLink>
     <NavLink class="nav-link" href="register">რეგისტრაცია</NavLink>
 }
-
 @code {
     private bool isLoggedIn = false;
     private string? username;
-
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)

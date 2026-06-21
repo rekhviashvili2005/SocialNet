@@ -1,22 +1,94 @@
 ﻿@page "/feed"
 @rendermode InteractiveWebAssembly
 @using SocialNet.Client.Client.Services
+@using Microsoft.AspNetCore.Components.Forms
 @inject PostService PostService
 @inject NavigationManager Navigation
-
 @inject LocalStorageService LocalStorage
+@inject HttpClient Http
+@implements IDisposable
 
-<h3>Feed</h3>
+<div class="search-bar-card">
+    <div class="search-input-row">
+        <input @oninput="e => { searchQuery = e.Value?.ToString() ?? string.Empty; _ = OnSearchInput(); }"
+               value="@searchQuery"
+               placeholder="მომხმარებლის ძიება..." />
+    </div>
 
-@if (!string.IsNullOrEmpty(currentUsername))
-{
-    <p>შესული ხარ როგორც: <strong>@currentUsername</strong></p>
-}
+    @if (searchResults.Any())
+    {
+        <div class="search-results">
+            @foreach (var user in searchResults)
+            {
+                <div class="search-result-item" @onclick="() => GoToProfile(user.UserName)">
+                    <span class="search-result-name">@user.DisplayName</span>
+                    <span class="search-result-username">@("@")@user.UserName</span>
+                </div>
+            }
+        </div>
+    }
+</div>
 
-<div style="margin:10px; padding:10px; border:1px solid gray;">
+<div class="composer-card">
     <textarea @bind="newPostContent" placeholder="რაზე ფიქრობ?"></textarea>
-    <br />
-    <button @onclick="CreatePost">გამოქვეყნება</button>
+
+    <div class="image-upload-section" style="margin-top:0.7rem;">
+        <label class="btn-pill btn-pill-outline" style="cursor:pointer; display:inline-block;">
+            🖼️ სურათის დამატება
+            <InputFile OnChange="OnImageSelected" accept="image/*" style="display:none;" />
+        </label>
+        @if (selectedImageName != null)
+        {
+            <span style="font-size:0.85rem; color:var(--color-text-muted); margin-left:0.5rem;">
+                ✅ @selectedImageName
+            </span>
+        }
+        @if (isUploading)
+        {
+            <span style="font-size:0.85rem; color:var(--color-primary); margin-left:0.5rem;">
+                ⏳ იტვირთება...
+            </span>
+        }
+    </div>
+
+    <div class="hashtag-selector">
+        <p>ჰეშთეგები აირჩიე:</p>
+        <div class="hashtag-options">
+            @foreach (var tag in availableHashtags)
+            {
+                <button class="btn-pill @(selectedHashtags.Contains(tag) ? "btn-pill-primary" : "btn-pill-outline")"
+                        @onclick="() => ToggleHashtag(tag)">
+                    #@tag
+                </button>
+            }
+        </div>
+    </div>
+
+    @if (showHashtagWarning)
+    {
+        <p style="color: red; font-size: 0.85rem; margin: 4px 0 0 4px;">⚠️ პოსტის დადება ჰეშთეგის გარეშე არ შეიძლება!</p>
+    }
+
+    <div class="composer-footer">
+        <button class="btn-pill btn-pill-primary" @onclick="CreatePost">გამოქვეყნება</button>
+    </div>
+</div>
+
+<div class="hashtag-filter">
+    <p>ფილტრი:</p>
+    <div class="hashtag-options">
+        <button class="btn-pill @(activeFilter == null ? "btn-pill-primary" : "btn-pill-outline")"
+                @onclick="() => FilterByHashtag(null)">
+            ყველა
+        </button>
+        @foreach (var tag in availableHashtags)
+        {
+            <button class="btn-pill @(activeFilter == tag ? "btn-pill-primary" : "btn-pill-outline")"
+                    @onclick="() => FilterByHashtag(tag)">
+                #@tag
+            </button>
+        }
+    </div>
 </div>
 
 @if (posts == null)
@@ -31,32 +103,58 @@ else
 {
     @foreach (var post in posts)
     {
-        <div style="border:1px solid gray; margin:10px; padding:10px;">
-            <strong>@post.UserName</strong>
-            <p>@post.Content</p>
-            <small>@post.CreatedAt.ToString("dd/MM/yyyy HH:mm")</small>
-            <br />
-            <button @onclick="() => ToggleLike(post.Id)">❤️ @post.LikesCount ლაიქი</button>
-            <button @onclick="() => ToggleComments(post.Id)">💬 კომენტარი</button>
+        <div class="post-card">
+            <div class="post-card-header">
+                <span class="post-author" style="cursor:pointer;"
+                      @onclick="() => { if (!string.IsNullOrEmpty(post.UserName)) GoToProfile(post.UserName); }">
+                    @post.UserName
+                </span>
+                <span class="post-time">@post.CreatedAt.ToString("dd/MM/yyyy HH:mm")</span>
+            </div>
+
+            <p class="post-content">@post.Content</p>
+
+            @if (!string.IsNullOrEmpty(post.ImageUrl))
+            {
+                <img src="@post.ImageUrl" class="post-image" alt="post image" />
+            }
+
+            @if (post.Hashtags.Any())
+            {
+                <div class="post-hashtags">
+                    @foreach (var tag in post.Hashtags)
+                    {
+                        <span class="hashtag-badge" @onclick="() => FilterByHashtag(tag)">#@tag</span>
+                    }
+                </div>
+            }
+
+            <div class="post-actions">
+                <button class="btn-pill @(post.IsLikedByCurrentUser ? "btn-pill-liked" : "btn-pill-outline")"
+                        @onclick="() => ToggleLike(post.Id)">
+                    ❤️ @post.LikesCount ლაიქი
+                </button>
+                <button class="btn-pill btn-pill-outline" @onclick="() => ToggleComments(post.Id)">💬 კომენტარი</button>
+            </div>
 
             @if (openComments.Contains(post.Id))
             {
-                <div style="margin-top:10px; padding:10px; background:#f5f5f5;">
+                <div class="comments-section">
                     @if (comments.ContainsKey(post.Id))
                     {
                         @foreach (var comment in comments[post.Id])
                         {
-                            <div style="border-bottom:1px solid #ddd; padding:5px;">
-                                <strong>@comment.UserName:</strong>
+                            <div class="comment-item">
+                                <span class="comment-author">@comment.UserName:</span>
                                 <span>@comment.Content</span>
                             </div>
                         }
                     }
-                    <div style="margin-top:10px;">
+                    <div class="comment-input-row">
                         <input value="@(newComments.ContainsKey(post.Id) ? newComments[post.Id] : "")"
                                @onchange="e => newComments[post.Id] = e.Value?.ToString() ?? string.Empty"
                                placeholder="კომენტარი..." />
-                        <button @onclick="() => AddComment(post.Id)">გაგზავნა</button>
+                        <button class="btn-pill btn-pill-primary" @onclick="() => AddComment(post.Id)">გაგზავნა</button>
                     </div>
                 </div>
             }
@@ -70,38 +168,173 @@ else
     private HashSet<Guid> openComments = new();
     private Dictionary<Guid, List<CommentDto>> comments = new();
     private Dictionary<Guid, string> newComments = new();
-
-
     private string? currentUsername;
+    private string? activeFilter = null;
+    private bool showHashtagWarning = false;
+    private HashSet<string> selectedHashtags = new();
+
+    private string searchQuery = "";
+    private List<UserSearchDto> searchResults = new();
+    private System.Threading.CancellationTokenSource? searchCts;
+
+    private string? selectedImageName;
+    private string? uploadedImageUrl;
+    private bool isUploading = false;
+
+    private List<string> availableHashtags = new()
+    {
+        "Football", "Basketball", "Tennis", "Formula1",
+        "MMA", "Rugby", "Volleyball", "Handball"
+    };
+
+    public void Dispose()
+    {
+        searchCts?.Cancel();
+        searchCts?.Dispose();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
             currentUsername = await LocalStorage.GetItemAsync("username");
+            posts = await PostService.GetAllPostsAsync();
+            if (posts != null)
+            {
+                foreach (var post in posts)
+                {
+                    if (!newComments.ContainsKey(post.Id))
+                        newComments[post.Id] = "";
+                }
+            }
             StateHasChanged();
         }
     }
 
-    protected override async Task OnInitializedAsync()
+    private async Task OnImageSelected(InputFileChangeEventArgs e)
     {
-        posts = await PostService.GetAllPostsAsync();
+        var file = e.File;
+        if (file == null) return;
+
+        selectedImageName = file.Name;
+        isUploading = true;
+        StateHasChanged();
+
+        try
+        {
+            using var stream = file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
+            uploadedImageUrl = await PostService.UploadImageAsync(stream, file.Name);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Upload error: {ex.Message}");
+            selectedImageName = null;
+            uploadedImageUrl = null;
+        }
+        finally
+        {
+            isUploading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task OnSearchInput()
+    {
+        searchCts?.Cancel();
+        searchCts?.Dispose();
+        searchCts = new System.Threading.CancellationTokenSource();
+        var token = searchCts.Token;
+
+        await Task.Delay(300);
+        if (token.IsCancellationRequested) return;
+
+        if (string.IsNullOrWhiteSpace(searchQuery))
+        {
+            searchResults = new();
+            StateHasChanged();
+            return;
+        }
+
+        try
+        {
+            var results = await Http.GetFromJsonAsync<List<UserSearchDto>>($"api/Users/search?query={searchQuery}");
+            if (!token.IsCancellationRequested)
+            {
+                searchResults = results ?? new();
+                StateHasChanged();
+            }
+        }
+        catch
+        {
+            searchResults = new();
+        }
+    }
+
+    private void GoToProfile(string username)
+    {
+        searchQuery = "";
+        searchResults = new();
+        Navigation.NavigateTo($"/profile/{username}");
+    }
+
+    private void ToggleHashtag(string tag)
+    {
+        if (selectedHashtags.Contains(tag))
+            selectedHashtags.Remove(tag);
+        else
+            selectedHashtags.Add(tag);
+
+        showHashtagWarning = false;
+    }
+
+    private async Task FilterByHashtag(string? tag)
+    {
+        activeFilter = tag;
+
+        if (tag == null)
+            posts = await PostService.GetAllPostsAsync();
+        else
+            posts = await PostService.GetPostsByHashtagAsync(tag);
+
         if (posts != null)
         {
             foreach (var post in posts)
             {
-                newComments[post.Id] = "";
+                if (!newComments.ContainsKey(post.Id))
+                    newComments[post.Id] = "";
             }
         }
     }
 
     private async Task CreatePost()
     {
+        if (string.IsNullOrEmpty(currentUsername))
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
         if (string.IsNullOrWhiteSpace(newPostContent)) return;
-        var result = await PostService.CreatePostAsync(newPostContent);
+
+        if (!selectedHashtags.Any())
+        {
+            showHashtagWarning = true;
+            return;
+        }
+
+        showHashtagWarning = false;
+
+        var result = await PostService.CreatePostAsync(newPostContent, selectedHashtags.ToList(), uploadedImageUrl);
         if (result)
         {
             newPostContent = "";
+            selectedHashtags.Clear();
+            selectedImageName = null;
+            uploadedImageUrl = null;
             posts = await PostService.GetAllPostsAsync();
             if (posts != null)
             {
@@ -114,14 +347,35 @@ else
         }
     }
 
-
     private async Task ToggleLike(Guid postId)
     {
+        if (string.IsNullOrEmpty(currentUsername))
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
         try
         {
-            await PostService.ToggleLikeAsync(postId);
-            posts = await PostService.GetAllPostsAsync();
-            StateHasChanged();
+            var result = await PostService.ToggleLikeAsync(postId);
+            if (result)
+            {
+                var post = posts?.FirstOrDefault(p => p.Id == postId);
+                if (post != null)
+                {
+                    if (post.IsLikedByCurrentUser)
+                    {
+                        post.LikesCount--;
+                        post.IsLikedByCurrentUser = false;
+                    }
+                    else
+                    {
+                        post.LikesCount++;
+                        post.IsLikedByCurrentUser = true;
+                    }
+                }
+                StateHasChanged();
+            }
         }
         catch (Exception ex)
         {
@@ -129,16 +383,19 @@ else
         }
     }
 
-
     private async Task ToggleComments(Guid postId)
     {
+        if (string.IsNullOrEmpty(currentUsername))
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
         if (!newComments.ContainsKey(postId))
             newComments[postId] = "";
 
         if (openComments.Contains(postId))
-        {
             openComments.Remove(postId);
-        }
         else
         {
             openComments.Add(postId);
@@ -152,6 +409,12 @@ else
 
     private async Task AddComment(Guid postId)
     {
+        if (string.IsNullOrEmpty(currentUsername))
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
         if (!newComments.ContainsKey(postId)) return;
         if (string.IsNullOrWhiteSpace(newComments[postId])) return;
 

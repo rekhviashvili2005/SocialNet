@@ -76,6 +76,8 @@ builder.Services.AddScoped<IUserService, UserService>();
 //
 builder.Services.AddScoped<IFollowService, FollowService>();
 
+//
+builder.Services.AddScoped<IImageService, ImageService>();
 
 
 //Cors blazor ?????????? ? ????? ?????

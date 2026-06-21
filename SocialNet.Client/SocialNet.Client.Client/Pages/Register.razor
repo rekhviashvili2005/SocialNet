@@ -4,34 +4,82 @@
 @inject AuthService AuthService
 @inject NavigationManager Navigation
 
-<h3>რეგისტრაცია</h3>
+<div style="min-height:100vh; background:#0f1117; display:flex; align-items:center; justify-content:center; font-family:system-ui,sans-serif; padding:2rem;">
+    <div style="background:#1a1d2e; border:0.5px solid rgba(255,255,255,0.1); border-radius:16px; padding:2.5rem; width:100%; max-width:400px;">
 
-<div>
-    <input @bind="userName" placeholder="მომხმარებლის სახელი" />
-</div>
-<div>
-    <input @bind="displayName" placeholder="სახელი და გვარი" />
-</div>
-<div>
-    <input @bind="email" placeholder="Email" type="email" />
-</div>
-<div>
-    <input @bind="password" placeholder="პაროლი" type="password" />
-</div>
+        <!-- Logo -->
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:2rem; justify-content:center;">
+            <div style="width:40px; height:40px; background:linear-gradient(135deg,#6366f1,#8b5cf6); border-radius:10px; display:flex; align-items:center; justify-content:center; color:#fff; font-size:18px; font-weight:700;">S</div>
+            <span style="font-size:22px; font-weight:600; color:#fff; letter-spacing:-0.5px;">SocialNet</span>
+        </div>
 
-@if (!string.IsNullOrEmpty(errorMessage))
-{
-    <p style="color:red">@errorMessage</p>
-}
+        <!-- Heading -->
+        <h3 style="font-size:22px; font-weight:600; color:#fff; margin:0 0 6px; text-align:center;">ანგარიშის შექმნა</h3>
+        <p style="font-size:14px; color:rgba(255,255,255,0.45); text-align:center; margin:0 0 2rem;">შემოგვიერთდი SocialNet-ზე</p>
 
-@if (!string.IsNullOrEmpty(successMessage))
-{
-    <p style="color:green">@successMessage</p>
-}
+        <!-- Error -->
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div style="background:rgba(239,68,68,0.1); border:0.5px solid rgba(239,68,68,0.3); border-radius:8px; padding:10px 14px; font-size:13px; color:#fca5a5; margin-bottom:14px; display:flex; align-items:center; gap:8px;">
+                ⚠ @errorMessage
+            </div>
+        }
 
-<button @onclick="HandleRegister">რეგისტრაცია</button>
-<br />
-<a href="/login">უკვე გაქვს ანგარიში? შედი!</a>
+        <!-- Success -->
+        @if (!string.IsNullOrEmpty(successMessage))
+        {
+            <div style="background:rgba(34,197,94,0.1); border:0.5px solid rgba(34,197,94,0.3); border-radius:8px; padding:10px 14px; font-size:13px; color:#86efac; margin-bottom:14px; display:flex; align-items:center; gap:8px;">
+                ✓ @successMessage
+            </div>
+        }
+
+        <!-- Username -->
+        <div style="margin-bottom:14px;">
+            <label style="font-size:12px; font-weight:500; color:rgba(255,255,255,0.55); letter-spacing:0.5px; display:block; margin-bottom:6px;">მომხმარებლის სახელი</label>
+            <input @bind="userName" type="text" placeholder="username123"
+                   style="width:100%; box-sizing:border-box; background:rgba(255,255,255,0.05); border:0.5px solid rgba(255,255,255,0.12); border-radius:10px; padding:12px 14px; font-size:15px; color:#fff; outline:none;" />
+        </div>
+
+        <!-- Display Name -->
+        <div style="margin-bottom:14px;">
+            <label style="font-size:12px; font-weight:500; color:rgba(255,255,255,0.55); letter-spacing:0.5px; display:block; margin-bottom:6px;">სახელი და გვარი</label>
+            <input @bind="displayName" type="text" placeholder="გიორგი გელაშვილი"
+                   style="width:100%; box-sizing:border-box; background:rgba(255,255,255,0.05); border:0.5px solid rgba(255,255,255,0.12); border-radius:10px; padding:12px 14px; font-size:15px; color:#fff; outline:none;" />
+        </div>
+
+        <!-- Email -->
+        <div style="margin-bottom:14px;">
+            <label style="font-size:12px; font-weight:500; color:rgba(255,255,255,0.55); letter-spacing:0.5px; display:block; margin-bottom:6px;">EMAIL</label>
+            <input @bind="email" type="email" placeholder="example@gmail.com"
+                   style="width:100%; box-sizing:border-box; background:rgba(255,255,255,0.05); border:0.5px solid rgba(255,255,255,0.12); border-radius:10px; padding:12px 14px; font-size:15px; color:#fff; outline:none;" />
+        </div>
+
+        <!-- Password -->
+        <div style="margin-bottom:6px;">
+            <label style="font-size:12px; font-weight:500; color:rgba(255,255,255,0.55); letter-spacing:0.5px; display:block; margin-bottom:6px;">პაროლი</label>
+            <input @bind="password" type="password" placeholder="••••••••"
+                   style="width:100%; box-sizing:border-box; background:rgba(255,255,255,0.05); border:0.5px solid rgba(255,255,255,0.12); border-radius:10px; padding:12px 14px; font-size:15px; color:#fff; outline:none;" />
+        </div>
+
+        <!-- Submit -->
+        <button @onclick="HandleRegister"
+                style="width:100%; margin-top:18px; padding:13px; background:linear-gradient(135deg,#6366f1,#8b5cf6); color:#fff; font-size:15px; font-weight:500; border:none; border-radius:10px; cursor:pointer; letter-spacing:0.2px;">
+            ანგარიშის შექმნა
+        </button>
+
+        <!-- Divider -->
+        <div style="display:flex; align-items:center; gap:10px; margin:20px 0;">
+            <div style="flex:1; height:0.5px; background:rgba(255,255,255,0.1);"></div>
+            <span style="font-size:13px; color:rgba(255,255,255,0.3);">ან</span>
+            <div style="flex:1; height:0.5px; background:rgba(255,255,255,0.1);"></div>
+        </div>
+
+        <!-- Login link -->
+        <p style="text-align:center; font-size:14px; color:rgba(255,255,255,0.4); margin:0;">
+            უკვე გაქვს ანგარიში? <a href="/login" style="color:#818cf8; text-decoration:none; font-weight:500;">შედი</a>
+        </p>
+    </div>
+</div>
 
 @code {
     private string userName = "";
@@ -43,9 +91,10 @@
 
     private async Task HandleRegister()
     {
-        var result = await AuthService.RegisterAsync(
-            userName, email, password, displayName);
+        errorMessage = "";
+        successMessage = "";
 
+        var result = await AuthService.RegisterAsync(userName, email, password, displayName);
         if (!result)
         {
             errorMessage = "რეგისტრაცია ვერ მოხერხდა!";

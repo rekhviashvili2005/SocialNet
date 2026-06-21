@@ -28,11 +28,16 @@ public class LikeService : ILikeService
         if (existingLike != null)
         {
             _context.Likes.Remove(existingLike);
-            await _context.SaveChangesAsync();
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                
+            }
             return true;
         }
-
-
 
         var like = new Like
         {
@@ -41,13 +46,17 @@ public class LikeService : ILikeService
             CreatedAt = DateTime.UtcNow,
         };
 
-
-
-
         _context.Likes.Add(like);
-        await _context.SaveChangesAsync();
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateException)
+        {
+            // უკვე დამატებულია
+        }
         return true;
-     }
+    }
 
 
 
