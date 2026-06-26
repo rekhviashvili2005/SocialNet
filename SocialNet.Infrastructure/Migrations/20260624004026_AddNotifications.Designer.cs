@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using SocialNet.Infrastructure.Persistence;
 
@@ -11,9 +12,11 @@ using SocialNet.Infrastructure.Persistence;
 namespace SocialNet.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260624004026_AddNotifications")]
+    partial class AddNotifications
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -185,29 +188,6 @@ namespace SocialNet.Infrastructure.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("Comments");
-                });
-
-            modelBuilder.Entity("SocialNet.Domain.Entities.CommentImage", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("CommentId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("ImageUrl")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("Order")
-                        .HasColumnType("int");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("CommentId");
-
-                    b.ToTable("CommentImages");
                 });
 
             modelBuilder.Entity("SocialNet.Domain.Entities.Follow", b =>
@@ -531,17 +511,6 @@ namespace SocialNet.Infrastructure.Migrations
                     b.Navigation("Post");
                 });
 
-            modelBuilder.Entity("SocialNet.Domain.Entities.CommentImage", b =>
-                {
-                    b.HasOne("SocialNet.Domain.Entities.Comment", "Comment")
-                        .WithMany("Images")
-                        .HasForeignKey("CommentId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Comment");
-                });
-
             modelBuilder.Entity("SocialNet.Domain.Entities.Follow", b =>
                 {
                     b.HasOne("SocialNet.Infrastructure.Identity.ApplicationUser", null)
@@ -618,11 +587,6 @@ namespace SocialNet.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Post");
-                });
-
-            modelBuilder.Entity("SocialNet.Domain.Entities.Comment", b =>
-                {
-                    b.Navigation("Images");
                 });
 
             modelBuilder.Entity("SocialNet.Domain.Entities.Post", b =>

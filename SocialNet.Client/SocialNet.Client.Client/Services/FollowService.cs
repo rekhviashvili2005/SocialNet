@@ -1,44 +1,4 @@
-﻿//using System.Net.Http.Json;
-
-//namespace SocialNet.Client.Client.Services;
-
-//public class FollowService
-//{
-//    private readonly HttpClient _httpClient;
-
-//    public FollowService(HttpClient httpClient)
-//    {
-//        _httpClient = httpClient;
-//    }
-
-//    public async Task FollowAsync(string targetUserId)
-//    {
-//        await _httpClient.PostAsync($"api/Follow/{targetUserId}", null);
-//    }
-
-//    public async Task UnFollowAsync(string targetUserId)
-//    {
-//        await _httpClient.DeleteAsync($"api/Follow/{targetUserId}");
-//    }
-
-//    public async Task<bool> IsFollowingAsync(string targetUserId)
-//    {
-//        return await _httpClient.GetFromJsonAsync<bool>($"api/Follow/{targetUserId}/isFollowing");
-//    }
-
-//    public async Task<int> GetFollowersCountAsync(string targetUserId)
-//    {
-//        return await _httpClient.GetFromJsonAsync<int>($"api/Follow/{targetUserId}/followers-count");
-//    }
-
-//    public async Task<int> GetFollowingCountAsync(string targetUserId)
-//    {
-//        return await _httpClient.GetFromJsonAsync<int>($"api/Follow/{targetUserId}/following-count");
-//    }
-//}
-
-
-using System.Net.Http.Headers;
+﻿using System.Net.Http.Headers;
 using System.Net.Http.Json;
 
 namespace SocialNet.Client.Client.Services;

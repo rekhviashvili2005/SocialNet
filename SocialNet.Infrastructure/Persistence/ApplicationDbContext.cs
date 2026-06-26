@@ -26,8 +26,16 @@ namespace SocialNet.Infrastructure.Persistence
 
 
 
-        public DbSet<PostHashtag> PostHashtags => Set<PostHashtag>(); 
+        public DbSet<PostHashtag> PostHashtags => Set<PostHashtag>();
 
+
+        public DbSet<PostImage> PostImages => Set<PostImage>();
+
+
+        public DbSet<Notification> Notifications => Set<Notification>();
+
+
+        public DbSet<CommentImage> CommentImages => Set<CommentImage>();
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -89,7 +97,39 @@ namespace SocialNet.Infrastructure.Persistence
             builder.Entity<Follow>()
                 .HasIndex(f => new { f.FollowerId, f.FollowingId })
                 .IsUnique();
+
+            //bervi suratis atvirtva ro shevdzlo
+            builder.Entity<PostImage>()
+                .HasOne(i => i.Post)
+                .WithMany(p => p.Images)
+                .HasForeignKey(i => i.PostId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            //Notifications
+
+            builder.Entity<Notification>()
+                .HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(n => n.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<Notification>()
+                .HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(n => n.ActorId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+
+
+
+            builder.Entity<CommentImage>()
+                .HasOne(i => i.Comment)
+                .WithMany(c => c.Images)
+                .HasForeignKey(i => i.CommentId)
+                .OnDelete(DeleteBehavior.Cascade);
         }
+
+
 
 
     }

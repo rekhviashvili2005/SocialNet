@@ -542,6 +542,13 @@ h1, h2, h3, h4, h5, h6 {
 
 
 /*suratebistvis*/
+.post-images {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0 1.2rem 0.8rem;
+}
+
 .post-image {
     width: 100%;
     max-height: 500px;
@@ -549,7 +556,89 @@ h1, h2, h3, h4, h5, h6 {
     display: block;
     background-color: var(--color-surface-2);
     border-radius: 12px;
-    margin-bottom: 0.5rem;
 }
 
 
+.follow-dropdown {
+    background-color: var(--color-surface-2);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    padding: 0.8rem 1rem;
+    margin-top: 0.5rem;
+}
+
+.feed-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.2rem;
+}
+
+.feed-tab {
+    flex: 1;
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    color: var(--color-text-muted);
+    padding: 0.6rem 1.2rem;
+    cursor: pointer;
+    font-family: var(--font-body);
+    font-weight: 500;
+    transition: all 0.15s ease;
+}
+
+    .feed-tab:hover {
+        border-color: var(--color-primary);
+        color: var(--color-primary);
+    }
+
+.feed-tab-active {
+    background-color: var(--color-primary);
+    border-color: var(--color-primary);
+    color: white;
+}
+
+.post-author:hover {
+    color: var(--color-primary);
+    text-decoration: underline;
+}
+
+.clickable {
+    cursor: pointer;
+}
+
+.clickable:hover {
+        color: var(--color-primary);
+        text-decoration: underline;
+}
+
+
+/* Notifications */
+.notification-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.9rem 1rem;
+    border-radius: 12px;
+    border: 1px solid var(--color-border);
+    background-color: var(--color-surface);
+    margin-bottom: 0.6rem;
+    transition: background 0.15s ease;
+}
+
+    .notification-item:hover {
+        background-color: var(--color-surface-hover, #1e1e2e);
+        border-color: var(--color-primary);
+    }
+
+.notification-unread {
+    border-left: 3px solid var(--color-primary);
+    background-color: var(--color-surface);
+}
+
+.notification-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: var(--color-primary);
+    flex-shrink: 0;
+}

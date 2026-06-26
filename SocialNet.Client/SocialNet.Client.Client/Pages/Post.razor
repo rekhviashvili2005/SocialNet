@@ -1,0 +1,153 @@
+﻿@page "/post/{id:guid}"
+@rendermode InteractiveWebAssembly
+@using SocialNet.Client.Client.Services
+@inject PostService PostService
+@inject NavigationManager Navigation
+@inject LocalStorageService LocalStorage
+
+@if (!isLoaded)
+{
+    <p>Loading...</p>
+}
+else if (post == null)
+{
+    <p>Post not found!</p>
+}
+else
+{
+    <div class="post-card">
+        <div class="post-card-header">
+            @* <span class="post-author" style="cursor:pointer;"
+                  @onclick='() => Navigation.NavigateTo($"/profile/{post.UserName}")'>
+                @post.UserName
+            </span> *@
+            <span class="post-author clickable"
+                  @onclick='() => Navigation.NavigateTo($"/profile/{post.UserName}")'>
+                @post.UserName
+            </span>
+            <span class="post-time">@post.CreatedAt.ToString("dd/MM/yyyy HH:mm")</span>
+        </div>
+
+        <p class="post-content">@post.Content</p>
+
+        @if (post.ImageUrls.Any())
+        {
+            <div class="post-images">
+                @foreach (var imgUrl in post.ImageUrls)
+                {
+                    <img src="@imgUrl" class="post-image" alt="post image" />
+                }
+            </div>
+        }
+        else if (!string.IsNullOrEmpty(post.ImageUrl))
+        {
+            <img src="@post.ImageUrl" class="post-image" alt="post image" />
+        }
+
+        @if (post.Hashtags.Any())
+        {
+            <div class="post-hashtags">
+                @foreach (var tag in post.Hashtags)
+                {
+                    <span class="hashtag-badge">#@tag</span>
+                }
+            </div>
+        }
+
+        <div class="post-actions">
+            <button class="btn-pill @(post.IsLikedByCurrentUser ? "btn-pill-liked" : "btn-pill-outline")"
+                    @onclick="ToggleLike">
+                ❤️ @post.LikesCount
+            </button>
+        </div>
+    </div>
+
+    <h4 class="section-title">Comments</h4>
+
+    @foreach (var c in commentList)
+    {
+        <div class="comment-item" style="background:var(--color-surface); border:1px solid var(--color-border); border-radius:12px; padding:0.8rem 1rem; margin-bottom:0.6rem;">
+            <span class="comment-author">@c.UserName:</span>
+            <span>@c.Content</span>
+            <div style="font-size:0.75rem; color:var(--color-text-muted); margin-top:0.3rem;">
+                @c.CreatedAt.ToString("dd/MM/yyyy HH:mm")
+            </div>
+        </div>
+    }
+
+    @if (!string.IsNullOrEmpty(currentUsername))
+    {
+        <div class="comment-input-row" style="margin-top:1rem;">
+            <input @bind="commentText" placeholder="Write a comment..." />
+            <button class="btn-pill btn-pill-primary" @onclick="AddComment">Send</button>
+        </div>
+    }
+}
+
+@code {
+    [Parameter]
+    public Guid Id { get; set; }
+
+    private PostDto? post;
+    private List<CommentDto> commentList = new();
+    private bool isLoaded = false;
+    private string? currentUsername;
+    private string commentText = "";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            currentUsername = await LocalStorage.GetItemAsync("username");
+            post = await PostService.GetPostByIdAsync(Id);
+            if (post != null)
+                commentList = await PostService.GetCommentsAsync(post.Id) ?? new();
+            isLoaded = true;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ToggleLike()
+    {
+        if (string.IsNullOrEmpty(currentUsername))
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+        if (post == null) return;
+
+        var result = await PostService.ToggleLikeAsync(post.Id);
+        if (result)
+        {
+            if (post.IsLikedByCurrentUser)
+            {
+                post.LikesCount--;
+                post.IsLikedByCurrentUser = false;
+            }
+            else
+            {
+                post.LikesCount++;
+                post.IsLikedByCurrentUser = true;
+            }
+            StateHasChanged();
+        }
+    }
+
+    private async Task AddComment()
+    {
+        if (string.IsNullOrEmpty(currentUsername))
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+        if (post == null || string.IsNullOrWhiteSpace(commentText)) return;
+
+        var result = await PostService.AddCommentAsync(post.Id, commentText);
+        if (result)
+        {
+            commentText = "";
+            commentList = await PostService.GetCommentsAsync(post.Id) ?? new();
+            StateHasChanged();
+        }
+    }
+}

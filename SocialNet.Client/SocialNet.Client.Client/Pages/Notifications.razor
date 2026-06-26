@@ -1,0 +1,111 @@
+﻿@page "/notifications"
+@rendermode InteractiveWebAssembly
+@using SocialNet.Client.Client.Services
+@inject NotificationService NotificationService
+@inject LocalStorageService LocalStorage
+@inject NavigationManager Navigation
+
+@inject NavigationManager Navigation
+
+<h3>Notifications</h3>
+
+@if (!isLoaded)
+{
+    <p>Loading...</p>
+}
+else if (!notificationList.Any())
+{
+    <div style="text-align:center; color:var(--color-text-muted); margin-top:2rem;">
+        <p style="font-size:2rem;">🔔</p>
+        <p>No notifications yet</p>
+    </div>
+}
+else
+{
+    <div style="margin-bottom:1rem; display:flex; justify-content:flex-end;">
+        <button class="btn-pill btn-pill-outline" @onclick="MarkAllRead">
+            ✓ Mark all as read
+        </button>
+    </div>
+
+    @foreach (var n in notificationList)
+    {
+        <div class="notification-item @(n.IsRead ? "" : "notification-unread")"
+             @onclick="() => MarkRead(n)"
+             style="cursor:pointer;">
+            
+
+            <div style="display:flex; align-items:center; gap:0.8rem;">
+                <span style="font-size:1.3rem;">
+                    @(n.Type == "like" ? "❤️" : "💬")
+                </span>
+                <div>
+                    <p style="margin:0; color:var(--color-text);">@n.Message</p>
+                    <span style="font-size:0.75rem; color:var(--color-text-muted);">
+                        @n.CreatedAt.ToString("dd/MM/yyyy HH:mm")
+                    </span>
+                </div>
+            </div>
+            @if (!n.IsRead)
+            {
+                <span class="notification-dot"></span>
+            }
+        </div>
+    }
+}
+
+@code {
+    private List<NotificationDto> notificationList = new();
+    private bool isLoaded = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var token = await LocalStorage.GetItemAsync("token");
+            if (string.IsNullOrEmpty(token))
+            {
+                Navigation.NavigateTo("/login");
+                return;
+            }
+
+            notificationList = await NotificationService.GetNotificationsAsync();
+            isLoaded = true;
+            StateHasChanged();
+        }
+    }
+
+    // private async Task MarkRead(NotificationDto n)
+    // {
+    //     if (!n.IsRead)
+    //     {
+    //         await NotificationService.MarkAsReadAsync(n.Id);
+    //         n.IsRead = true;
+    //         StateHasChanged();
+    //     }
+    // }
+
+    private async Task MarkRead(NotificationDto n)
+    {
+        if (!n.IsRead)
+        {
+            await NotificationService.MarkAsReadAsync(n.Id);
+            n.IsRead = true;
+        }
+        Navigation.NavigateTo($"/post/{n.PostId}");
+    }
+
+    // private async Task MarkAllRead()
+    // {
+    //     await NotificationService.MarkAllAsReadAsync();
+    //     foreach (var n in notificationList)
+    //         n.IsRead = true;
+    //     StateHasChanged();
+    // }
+    private async Task MarkAllRead()
+    {
+        await NotificationService.MarkAllAsReadAsync();
+        notificationList = notificationList.Select(n => { n.IsRead = true; return n; }).ToList();
+        StateHasChanged();
+    }
+}

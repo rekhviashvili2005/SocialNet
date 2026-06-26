@@ -12,7 +12,11 @@ public class PostDto
     public Guid Id { get; set; }
     public string Content { get; set; } = string.Empty;
     public string? ImageUrl { get; set; }
+
+    public List<string> ImageUrls { get; set; } = new(); 
     public string UserName { get; set; } = string.Empty;
+
+    public string AuthorId { get; set; } = string.Empty;
     public DateTime CreatedAt {get; set; }
 
 
@@ -22,5 +26,7 @@ public class PostDto
 
 
     public bool IsLikedByCurrentUser { get; set; }
+
+    
 }
 

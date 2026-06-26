@@ -29,5 +29,7 @@ builder.Services.AddScoped<PostService>();
 builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<FollowService>();
 
+builder.Services.AddScoped<NotificationService>();
+
 
 await builder.Build().RunAsync();

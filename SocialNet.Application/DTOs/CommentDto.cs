@@ -14,10 +14,16 @@ public class CommentDto
     public string UserName { get; set; } = string.Empty;
     public Guid PostId { get; set; }
     public DateTime CreatedAt { get; set; }
+
+    //public string? ImageUrl { get; set; } // commentshi suratebistvis
+    public List<string> ImageUrls { get; set; } = new(); //ramdenime suratistvis
 }
 
 public class CreateCommentDto
 {
     public string Content { get; set; } = string.Empty;
     public Guid PostId { get; set; }
+
+    //public string? ImageUrl { get; set; }// commentshi suratebistvis
+    public List<string> ImageUrls { get; set; } = new(); //ramdenime suratistvis
 }

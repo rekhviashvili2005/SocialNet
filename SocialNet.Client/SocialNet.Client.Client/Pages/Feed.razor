@@ -6,6 +6,7 @@
 @inject NavigationManager Navigation
 @inject LocalStorageService LocalStorage
 @inject HttpClient Http
+@inject FollowService FollowService
 @implements IDisposable
 
 <div class="search-bar-card">
@@ -33,21 +34,35 @@
     <textarea @bind="newPostContent" placeholder="რაზე ფიქრობ?"></textarea>
 
     <div class="image-upload-section" style="margin-top:0.7rem;">
-        <label class="btn-pill btn-pill-outline" style="cursor:pointer; display:inline-block;">
-            🖼️ სურათის დამატება
-            <InputFile OnChange="OnImageSelected" accept="image/*" style="display:none;" />
+        <InputFile OnChange="OnImagesSelected" accept="image/*" multiple
+                   id="imageInput"
+                   style="display:none;" />
+        <label for="imageInput" class="btn-pill btn-pill-outline" style="cursor:pointer; display:inline-block;">
+            🖼️ სურათების დამატება
         </label>
-        @if (selectedImageName != null)
-        {
-            <span style="font-size:0.85rem; color:var(--color-text-muted); margin-left:0.5rem;">
-                ✅ @selectedImageName
-            </span>
-        }
+
         @if (isUploading)
         {
             <span style="font-size:0.85rem; color:var(--color-primary); margin-left:0.5rem;">
                 ⏳ იტვირთება...
             </span>
+        }
+
+        @if (selectedImageNames.Any())
+        {
+            <div style="margin-top:0.5rem; display:flex; flex-wrap:wrap; gap:0.4rem;">
+                @for (int i = 0; i < selectedImageNames.Count; i++)
+                {
+                    var index = i;
+                    <span style="font-size:0.8rem; color:var(--color-text-muted); background:var(--color-surface-2); padding:0.2rem 0.6rem; border-radius:999px; display:flex; align-items:center; gap:0.3rem;">
+                        ✅ @selectedImageNames[index]
+                        <button @onclick="() => RemoveImage(index)"
+                                style="background:none; border:none; color:#F43F5E; cursor:pointer; font-size:0.9rem; padding:0; line-height:1;">
+                            ✕
+                        </button>
+                    </span>
+                }
+            </div>
         }
     </div>
 
@@ -74,6 +89,18 @@
     </div>
 </div>
 
+<div class="feed-tabs">
+    <button class="feed-tab @(activeTab == "all" ? "feed-tab-active" : "")"
+            @onclick='() => SwitchTab("all")'>
+        All Posts
+    </button>
+    <button class="feed-tab @(activeTab == "following" ? "feed-tab-active" : "")"
+            @onclick='() => SwitchTab("following")'>
+        Following
+    </button>
+</div>
+
+
 <div class="hashtag-filter">
     <p>ფილტრი:</p>
     <div class="hashtag-options">
@@ -91,6 +118,7 @@
     </div>
 </div>
 
+
 @if (posts == null)
 {
     <p>იტვირთება...</p>
@@ -105,16 +133,38 @@ else
     {
         <div class="post-card">
             <div class="post-card-header">
-                <span class="post-author" style="cursor:pointer;"
-                      @onclick="() => { if (!string.IsNullOrEmpty(post.UserName)) GoToProfile(post.UserName); }">
-                    @post.UserName
-                </span>
+                <div style="display:flex; align-items:center; gap:0.6rem;">
+                    <span class="post-author" style="cursor:pointer;"
+                          @onclick="() => { if (!string.IsNullOrEmpty(post.UserName)) GoToProfile(post.UserName); }">
+                        @post.UserName
+                    </span>
+                    @if (!string.IsNullOrEmpty(currentUsername) && post.UserName != currentUsername)
+                    {
+                        <button class="btn-pill @(followStates.ContainsKey(post.AuthorId) && followStates[post.AuthorId] ? "btn-pill-following" : "btn-pill-follow")"
+                                style="padding:0.25rem 0.7rem; font-size:0.78rem;"
+                                @onclick="() => ToggleFollowFromFeed(post.AuthorId)">
+                            @(followStates.ContainsKey(post.AuthorId) && followStates[post.AuthorId] ? "Unfollow" : "Follow")
+                        </button>
+                    }
+                </div>
                 <span class="post-time">@post.CreatedAt.ToString("dd/MM/yyyy HH:mm")</span>
             </div>
 
+
+
+
             <p class="post-content">@post.Content</p>
 
-            @if (!string.IsNullOrEmpty(post.ImageUrl))
+            @if (post.ImageUrls.Any())
+            {
+                <div class="post-images">
+                    @foreach (var imgUrl in post.ImageUrls)
+                    {
+                        <img src="@imgUrl" class="post-image" alt="post image" />
+                    }
+                </div>
+            }
+            else if (!string.IsNullOrEmpty(post.ImageUrl))
             {
                 <img src="@post.ImageUrl" class="post-image" alt="post image" />
             }
@@ -137,6 +187,9 @@ else
                 <button class="btn-pill btn-pill-outline" @onclick="() => ToggleComments(post.Id)">💬 კომენტარი</button>
             </div>
 
+
+
+
             @if (openComments.Contains(post.Id))
             {
                 <div class="comments-section">
@@ -144,9 +197,32 @@ else
                     {
                         @foreach (var comment in comments[post.Id])
                         {
+                            @* <div class="comment-item">
+                                <span class="comment-author">@comment.UserName:</span>
+                                <span>@comment.Content</span>
+                                @if (!string.IsNullOrEmpty(comment.ImageUrl))
+                                {
+                                    <div style="margin-top:0.4rem;">
+                                        <img src="@comment.ImageUrl"
+                                             style="max-height:60px; max-width:80px; border-radius:6px; cursor:pointer; object-fit:cover;"
+                                             @onclick="@(() => { expandedCommentImage = comment.ImageUrl; StateHasChanged(); })" />
+                                    </div>
+                                }
+                            </div> *@
                             <div class="comment-item">
                                 <span class="comment-author">@comment.UserName:</span>
                                 <span>@comment.Content</span>
+                                @if (comment.ImageUrls.Any())
+                                {
+                                    <div style="display:flex; flex-wrap:wrap; gap:0.4rem; margin-top:0.4rem;">
+                                        @foreach (var imgUrl in comment.ImageUrls)
+                                        {
+                                            <img src="@imgUrl"
+                                                 style="max-height:60px; max-width:80px; border-radius:6px; cursor:pointer; object-fit:cover;"
+                                                 @onclick="@(() => { expandedCommentImage = imgUrl; StateHasChanged(); })" />
+                                        }
+                                    </div>
+                                }
                             </div>
                         }
                     }
@@ -154,10 +230,58 @@ else
                         <input value="@(newComments.ContainsKey(post.Id) ? newComments[post.Id] : "")"
                                @onchange="e => newComments[post.Id] = e.Value?.ToString() ?? string.Empty"
                                placeholder="კომენტარი..." />
+                        <InputFile id="@($"comment-img-{post.Id}")"
+                                   OnChange="e => OnCommentImageSelected(e, post.Id)"
+                                   accept="image/*"
+                                   style="display:none;" />
+                        <label for="@($"comment-img-{post.Id}")" class="btn-pill btn-pill-outline" style="cursor:pointer;">
+                            🖼️
+                        </label>
                         <button class="btn-pill btn-pill-primary" @onclick="() => AddComment(post.Id)">გაგზავნა</button>
                     </div>
+                    @if (commentImageUploading.ContainsKey(post.Id) && commentImageUploading[post.Id])
+                    {
+                        <div style="margin-top:0.4rem; color:var(--color-text-muted); font-size:0.85rem;">
+                            ⏳ იტვირთება...
+                        </div>
+                    }
+                    @* @if (commentImageUrls.ContainsKey(post.Id) && !string.IsNullOrEmpty(commentImageUrls[post.Id]))
+                    {
+                        <div style="margin-top:0.4rem; position:relative; display:inline-block;">
+                            <img src="@commentImageUrls[post.Id]" style="max-height:100px; border-radius:8px;" />
+                            <button @onclick="() => commentImageUrls.Remove(post.Id)"
+                                    style="position:absolute; top:-6px; right:-6px; background:#F43F5E; color:white; border:none; border-radius:50%; width:20px; height:20px; cursor:pointer; font-size:0.7rem;">
+                                ✕
+                            </button>
+                        </div>
+                    } *@
+                    @if (commentImageUrls.ContainsKey(post.Id) && commentImageUrls[post.Id].Any())
+                    {
+                        <div style="display:flex; flex-wrap:wrap; gap:0.4rem; margin-top:0.4rem;">
+                            @foreach (var (url, index) in commentImageUrls[post.Id].Select((u, i) => (u, i)))
+                            {
+                                <div style="position:relative; display:inline-block;">
+                                    <img src="@url" style="max-height:100px; border-radius:8px;" />
+                                    <button @onclick="() => commentImageUrls[post.Id].RemoveAt(index)"
+                                            style="position:absolute; top:-6px; right:-6px; background:#F43F5E; color:white; border:none; border-radius:50%; width:20px; height:20px; cursor:pointer; font-size:0.7rem;">
+                                        ✕
+                                    </button>
+                                </div>
+                            }
+                        </div>
+                    }
                 </div>
             }
+
+            @if (!string.IsNullOrEmpty(expandedCommentImage))
+            {
+                <div style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:9999; display:flex; align-items:center; justify-content:center;"
+                     @onclick="@(() => { expandedCommentImage = null; StateHasChanged(); })">
+                    <img src="@expandedCommentImage" style="max-width:90%; max-height:90%; border-radius:12px;" />
+                </div>
+            }
+
+
         </div>
     }
 }
@@ -169,16 +293,18 @@ else
     private Dictionary<Guid, List<CommentDto>> comments = new();
     private Dictionary<Guid, string> newComments = new();
     private string? currentUsername;
+    private string? currentUserId;
     private string? activeFilter = null;
     private bool showHashtagWarning = false;
     private HashSet<string> selectedHashtags = new();
+    private Dictionary<string, bool> followStates = new();
 
     private string searchQuery = "";
     private List<UserSearchDto> searchResults = new();
     private System.Threading.CancellationTokenSource? searchCts;
 
-    private string? selectedImageName;
-    private string? uploadedImageUrl;
+    private List<string> selectedImageNames = new();
+    private List<string> uploadedImageUrls = new();
     private bool isUploading = false;
 
     private List<string> availableHashtags = new()
@@ -202,7 +328,11 @@ else
         if (firstRender)
         {
             currentUsername = await LocalStorage.GetItemAsync("username");
-            posts = await PostService.GetAllPostsAsync();
+            currentUserId = await LocalStorage.GetItemAsync("userId");
+            //posts = await PostService.GetAllPostsAsync();
+             posts = await PostService.GetFeedPostsAsync();
+
+
             if (posts != null)
             {
                 foreach (var post in posts)
@@ -210,36 +340,115 @@ else
                     if (!newComments.ContainsKey(post.Id))
                         newComments[post.Id] = "";
                 }
+
+                if (!string.IsNullOrEmpty(currentUserId))
+                {
+                    var authorIds = posts.Select(p => p.AuthorId).Distinct().ToList();
+                    foreach (var authorId in authorIds)
+                    {
+                        if (!string.IsNullOrEmpty(authorId) && authorId != currentUserId)
+                        {
+                            var isFollowing = await FollowService.IsFollowingAsync(authorId);
+                            followStates[authorId] = isFollowing;
+                        }
+                    }
+                }
             }
             StateHasChanged();
         }
     }
 
-    private async Task OnImageSelected(InputFileChangeEventArgs e)
+    private async Task ToggleFollowFromFeed(string authorId)
     {
-        var file = e.File;
-        if (file == null) return;
+        if (string.IsNullOrEmpty(currentUsername))
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
 
-        selectedImageName = file.Name;
+        if (followStates.ContainsKey(authorId) && followStates[authorId])
+        {
+            await FollowService.UnFollowAsync(authorId);
+            followStates[authorId] = false;
+        }
+        else
+        {
+            await FollowService.FollowAsync(authorId);
+            followStates[authorId] = true;
+        }
+        StateHasChanged();
+    }
+
+    // private async Task OnImagesSelected(InputFileChangeEventArgs e)
+    // {
+    //     var files = e.GetMultipleFiles(10);
+    //     if (!files.Any()) return;
+
+    //     selectedImageNames = files.Select(f => f.Name).ToList();
+    //     isUploading = true;
+    //     StateHasChanged();
+
+    //     try
+    //     {
+    //         uploadedImageUrls = new();
+    //         foreach (var file in files)
+    //         {
+    //             using var stream = file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
+    //             var url = await PostService.UploadImageAsync(stream, file.Name);
+    //             if (url != null)
+    //                 uploadedImageUrls.Add(url);
+    //         }
+    //     }
+    //     catch (Exception ex)
+    //     {
+    //         Console.WriteLine($"Upload error: {ex.Message}");
+    //         selectedImageNames = new();
+    //         uploadedImageUrls = new();
+    //     }
+    //     finally
+    //     {
+    //         isUploading = false;
+    //         StateHasChanged();
+    //     }
+    // }
+
+    private async Task OnImagesSelected(InputFileChangeEventArgs e)
+    {
+        var files = e.GetMultipleFiles(10);
+        if (!files.Any()) return;
+
         isUploading = true;
         StateHasChanged();
 
         try
         {
-            using var stream = file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
-            uploadedImageUrl = await PostService.UploadImageAsync(stream, file.Name);
+            foreach (var file in files)
+            {
+                selectedImageNames.Add(file.Name); // ახალი სახელები ემატება
+                using var stream = file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
+                var url = await PostService.UploadImageAsync(stream, file.Name);
+                if (url != null)
+                    uploadedImageUrls.Add(url); // ახალი URL ემატება, არ ენაცვლება
+            }
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Upload error: {ex.Message}");
-            selectedImageName = null;
-            uploadedImageUrl = null;
         }
         finally
         {
             isUploading = false;
             StateHasChanged();
         }
+    }
+
+    private void RemoveImage(int index)
+    {
+        if (index < selectedImageNames.Count)
+            selectedImageNames.RemoveAt(index);
+        if (index < uploadedImageUrls.Count)
+            uploadedImageUrls.RemoveAt(index);
+        StateHasChanged();
     }
 
     private async Task OnSearchInput()
@@ -328,13 +537,19 @@ else
 
         showHashtagWarning = false;
 
-        var result = await PostService.CreatePostAsync(newPostContent, selectedHashtags.ToList(), uploadedImageUrl);
+        var result = await PostService.CreatePostAsync(
+            newPostContent,
+            selectedHashtags.ToList(),
+            null,
+            uploadedImageUrls
+        );
+
         if (result)
         {
             newPostContent = "";
             selectedHashtags.Clear();
-            selectedImageName = null;
-            uploadedImageUrl = null;
+            selectedImageNames = new();
+            uploadedImageUrls = new();
             posts = await PostService.GetAllPostsAsync();
             if (posts != null)
             {
@@ -407,6 +622,27 @@ else
         }
     }
 
+    // private async Task AddComment(Guid postId)
+    // {
+    //     if (string.IsNullOrEmpty(currentUsername))
+    //     {
+    //         Navigation.NavigateTo("/login");
+    //         return;
+    //     }
+    //     if (!newComments.ContainsKey(postId)) return;
+    //     if (string.IsNullOrWhiteSpace(newComments[postId]) && !commentImageUrls.ContainsKey(postId)) return;
+
+    //     var imageUrl = commentImageUrls.ContainsKey(postId) ? commentImageUrls[postId] : null;
+    //     var result = await PostService.AddCommentAsync(postId, newComments[postId] ?? "", imageUrl);
+    //     if (result)
+    //     {
+    //         newComments[postId] = "";
+    //         commentImageUrls.Remove(postId);
+    //         var updated = await PostService.GetCommentsAsync(postId);
+    //         comments[postId] = updated ?? new();
+    //         StateHasChanged();
+    //     }
+    // }
     private async Task AddComment(Guid postId)
     {
         if (string.IsNullOrEmpty(currentUsername))
@@ -414,16 +650,99 @@ else
             Navigation.NavigateTo("/login");
             return;
         }
-
         if (!newComments.ContainsKey(postId)) return;
-        if (string.IsNullOrWhiteSpace(newComments[postId])) return;
 
-        var result = await PostService.AddCommentAsync(postId, newComments[postId]);
+        var imageUrls = commentImageUrls.ContainsKey(postId) ? commentImageUrls[postId] : new();
+        if (string.IsNullOrWhiteSpace(newComments[postId]) && !imageUrls.Any()) return;
+
+        var result = await PostService.AddCommentAsync(postId, newComments[postId] ?? "", imageUrls);
         if (result)
         {
             newComments[postId] = "";
+            commentImageUrls.Remove(postId);
             var updated = await PostService.GetCommentsAsync(postId);
             comments[postId] = updated ?? new();
+            StateHasChanged();
+        }
+    }
+
+
+
+    private string activeTab = "all";
+
+    private async Task SwitchTab(string tab)
+    {
+        activeTab = tab;
+        activeFilter = null;
+
+        if (tab == "following")
+        {
+            if (string.IsNullOrEmpty(currentUsername))
+            {
+                Navigation.NavigateTo("/login");
+                return;
+            }
+            posts = await PostService.GetFollowingPostsAsync();
+        }
+        else
+        {
+            posts = await PostService.GetFeedPostsAsync();
+        }
+
+        if (posts != null)
+        {
+            foreach (var post in posts)
+            {
+                if (!newComments.ContainsKey(post.Id))
+                    newComments[post.Id] = "";
+            }
+        }
+        StateHasChanged();
+    }
+
+    private string? expandedCommentImage = null;
+    private Dictionary<Guid, List<string>> commentImageUrls = new();
+    // private Dictionary<Guid, string> commentImageUrls = new();
+    private Dictionary<Guid, bool> commentImageUploading = new();
+
+    // private async Task OnCommentImageSelected(InputFileChangeEventArgs e, Guid postId)
+    // {
+    //     var file = e.File;
+    //     commentImageUploading[postId] = true;
+    //     StateHasChanged();
+
+    //     using var stream = file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
+    //     var url = await PostService.UploadImageAsync(stream, file.Name);
+    //     if (url != null)
+    //         commentImageUrls[postId] = url;
+
+    //     commentImageUploading[postId] = false;
+    //     StateHasChanged();
+    // }
+    private async Task OnCommentImageSelected(InputFileChangeEventArgs e, Guid postId)
+    {
+        var files = e.GetMultipleFiles(5);
+        commentImageUploading[postId] = true;
+        StateHasChanged();
+
+        if (!commentImageUrls.ContainsKey(postId))
+            commentImageUrls[postId] = new();
+
+        try
+        {
+            foreach (var file in files)
+            {
+                using var stream = file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
+                var url = await PostService.UploadImageAsync(stream, file.Name);
+                if (url != null)
+                    commentImageUrls[postId].Add(url);
+            }
+        }
+        finally
+        {
+            commentImageUploading[postId] = false;
+            StateHasChanged();
         }
     }
 }
+

@@ -17,7 +17,9 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<LocalStorageService>();
 builder.Services.AddScoped<PostService>();
 
-builder.Services.AddScoped<FollowService>(); // ← 
+builder.Services.AddScoped<FollowService>(); // 
+
+builder.Services.AddScoped<NotificationService>();
 
 var app = builder.Build();
 

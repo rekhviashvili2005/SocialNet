@@ -79,6 +79,9 @@ builder.Services.AddScoped<IFollowService, FollowService>();
 //
 builder.Services.AddScoped<IImageService, ImageService>();
 
+//notifications
+builder.Services.AddScoped<INotificationService, NotificationService>();
+
 
 //Cors blazor ?????????? ? ????? ?????
 builder.Services.AddCors(options =>

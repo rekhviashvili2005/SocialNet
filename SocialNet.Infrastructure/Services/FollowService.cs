@@ -78,45 +78,31 @@ public class FollowService :IFollowService
 
 
 
-    //
+ 
     public async Task<List<string>> GetFollowersAsync(string userId)
     {
-
-        var followersIds = await _context.Follows
-            .Where(f => f.FollowingId == userId)
+        var followerIds = await _context.Follows
+            .Where(f => f.FollowingId == userId) 
             .Select(f => f.FollowerId)
             .ToListAsync();
 
         return await _userManager.Users
-            .Where(u => followersIds.Contains(u.Id))
+            .Where(u => followerIds.Contains(u.Id))
             .Select(u => u.UserName!)
             .ToListAsync();
-
-
-        //return await _context.Follows
-        //    .Where(f => f.FollowingId == userId)
-        //    .Select(f => f.FollowerId)
-        //    .ToListAsync();
     }
 
     public async Task<List<string>> GetFollowingAsync(string userId)
     {
-
+    
         var followingIds = await _context.Follows
-            .Where(f => f.FollowingId == userId)
-            .Select( f => f.FollowerId)
+            .Where(f => f.FollowerId == userId) 
+            .Select(f => f.FollowingId) 
             .ToListAsync();
 
         return await _userManager.Users
             .Where(u => followingIds.Contains(u.Id))
             .Select(u => u.UserName!)
             .ToListAsync();
-
-
-        //return await _context.Follows
-        //    .Where(f => f.FollowerId == userId)
-        //    .Select(f => f.FollowingId)
-        //    .ToListAsync();
     }
-
 }

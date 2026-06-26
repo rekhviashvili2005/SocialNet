@@ -13,5 +13,10 @@ namespace SocialNet.Domain.Entities
         public string UserId { get; set; } = string.Empty;
         public Guid PostId { get; set; }
         public Post Post { get; set; } = null!;
-     }
+
+        // axalia commentshi suratebistvis
+        //public string? ImageUrl { get; set; }
+        public List<CommentImage> Images { get; set; } = new(); //ramdenime suratistvis coometnti
+    }
+
 }

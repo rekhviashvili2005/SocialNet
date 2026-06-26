@@ -5,12 +5,6 @@ using SocialNet.Application.Interfaces;
 using SocialNet.Domain.Entities;
 using SocialNet.Infrastructure.Identity;
 using SocialNet.Infrastructure.Persistence;
-using System;
-using System.Collections.Generic;
-using System.Globalization;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace SocialNet.Infrastructure.Services;
 
@@ -18,28 +12,28 @@ public class CommentService : ICommentService
 {
     private readonly ApplicationDbContext _context;
     private readonly UserManager<ApplicationUser> _useManager;
-
+    private readonly INotificationService _notificationService;
 
     public CommentService(
         ApplicationDbContext context,
-        UserManager<ApplicationUser> useManager)
+        UserManager<ApplicationUser> useManager,
+        INotificationService notificationService)
     {
         _context = context;
         _useManager = useManager;
+        _notificationService = notificationService;
     }
-
-
 
     public async Task<List<CommentDto>> GetPostCommentsAsync(Guid postId)
     {
         var comments = await _context.Comments
+            .Include(c => c.Images)
             .Where(c => c.PostId == postId)
             .OrderByDescending(c => c.CreatedAt)
             .ToListAsync();
 
         var result = new List<CommentDto>();
-
-        foreach(var comment in comments)
+        foreach (var comment in comments)
         {
             var user = await _useManager.FindByIdAsync(comment.UserId);
             result.Add(new CommentDto
@@ -47,18 +41,14 @@ public class CommentService : ICommentService
                 Id = comment.Id,
                 Content = comment.Content,
                 UserId = comment.UserId,
-                // UserName = user?.UserName ?? "უცნობი",
                 UserName = user?.UserName ?? user?.Email ?? comment.UserId,
                 PostId = comment.PostId,
                 CreatedAt = comment.CreatedAt,
+                ImageUrls = comment.Images.OrderBy(i => i.Order).Select(i => i.ImageUrl).ToList()
             });
         }
-
         return result;
-
     }
-
-
 
     public async Task<CommentDto> AddCommentAsync(CreateCommentDto dto, string userId)
     {
@@ -67,29 +57,29 @@ public class CommentService : ICommentService
             Content = dto.Content,
             PostId = dto.PostId,
             UserId = userId,
-            CreatedAt = DateTime.UtcNow
-
+            CreatedAt = DateTime.UtcNow,
+            Images = dto.ImageUrls
+                .Select((url, index) => new CommentImage { ImageUrl = url, Order = index })
+                .ToList()
         };
-
 
         _context.Comments.Add(comment);
         await _context.SaveChangesAsync();
 
-        var user = await _useManager.FindByIdAsync(userId); //Id შევცვაკე email ით იყო
+        await _notificationService.CreateCommentNotificationAsync(dto.PostId, userId, dto.Content);
 
-
+        var user = await _useManager.FindByIdAsync(userId);
         return new CommentDto
         {
             Id = comment.Id,
             Content = comment.Content,
             UserId = comment.UserId,
             UserName = user?.UserName ?? user?.Email ?? userId,
-           // UserName = user?.UserName ?? "უცნობი",
             PostId = comment.PostId,
-            CreatedAt = comment.CreatedAt
+            CreatedAt = comment.CreatedAt,
+            ImageUrls = comment.Images.OrderBy(i => i.Order).Select(i => i.ImageUrl).ToList()
         };
     }
-
 
     public async Task<bool> DeleteCommentAsync(Guid id, string userId)
     {
@@ -100,8 +90,4 @@ public class CommentService : ICommentService
         await _context.SaveChangesAsync();
         return true;
     }
-
-
 }
-
-

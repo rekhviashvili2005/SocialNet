@@ -1,0 +1,48 @@
+﻿@rendermode InteractiveWebAssembly
+@using SocialNet.Client.Client.Services
+@inject NotificationService NotificationService
+@inject LocalStorageService LocalStorage
+
+@if (unreadCount > 0)
+{
+    @* <span style="background-color:#F43F5E; color:white; border-radius:999px; padding:0.1rem 0.45rem; font-size:0.7rem; font-weight:700; margin-left:0.3rem;">
+        @unreadCount
+    </span> *@
+    <span style="background-color:#F43F5E; color:white; border-radius:50%; width:1.2rem; height:1.2rem; display:inline-flex; align-items:center; justify-content:center; font-size:0.65rem; font-weight:700; margin-left:0.3rem;">
+        @unreadCount
+    </span>
+}
+
+@code {
+    private int unreadCount = 0;
+    private System.Threading.Timer? _timer;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var token = await LocalStorage.GetItemAsync("token");
+            if (!string.IsNullOrEmpty(token))
+            {
+                unreadCount = await NotificationService.GetUnreadCountAsync();
+                StateHasChanged();
+
+                // ყოველ 30 წამში განახლება
+                _timer = new System.Threading.Timer(async _ =>
+                {
+                    var t = await LocalStorage.GetItemAsync("token");
+                    if (!string.IsNullOrEmpty(t))
+                    {
+                        unreadCount = await NotificationService.GetUnreadCountAsync();
+                        await InvokeAsync(StateHasChanged);
+                    }
+                }, null, 30000, 30000);
+            }
+        }
+    }
+
+    public void Dispose()
+    {
+        _timer?.Dispose();
+    }
+}

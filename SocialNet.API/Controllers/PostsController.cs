@@ -34,14 +34,15 @@ public class PostsController : ControllerBase
     }
 
 
+   
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(Guid id)
     {
-        var post = await _postService.GetPostByIdAsync(id);
-        if(post == null) return NotFound("პოსტი ვერ მოიძებნა");
+        var userId = User.FindFirstValue("uid");
+        var post = await _postService.GetPostByIdAsync(id, userId);
+        if (post == null) return NotFound("პოსტი ვერ მოიძებნა");
         return Ok(post);
     }
-
 
     [Authorize]
     [HttpPost]
@@ -94,6 +95,25 @@ public class PostsController : ControllerBase
         //return Ok(posts);
         var userId = User.FindFirstValue("uid");
         var posts = await _postService.GetPostsByHashtagAsync(tag, userId);
+        return Ok(posts);
+    }
+
+    [HttpGet("feed")]
+    public async Task<IActionResult> GetFeed()
+    {
+        var userId = User.FindFirstValue("uid");
+        var posts = await _postService.GetFeedPostsAsync(userId);
+        return Ok(posts);
+    }
+
+
+    [Authorize]
+    [HttpGet("following")]
+    public async Task<IActionResult> GetFollowingPosts()
+    {
+        var userId = User.FindFirstValue("uid");
+        if (userId == null) return Unauthorized();
+        var posts = await _postService.GetFollowingPostsAsync(userId);
         return Ok(posts);
     }
 }

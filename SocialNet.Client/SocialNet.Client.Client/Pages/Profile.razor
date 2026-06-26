@@ -1,82 +1,99 @@
 ﻿@page "/profile/{username}"
 @rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
-
 @using SocialNet.Client.Client.Services
 @using Microsoft.AspNetCore.Components.Web
-
 @inject HttpClient Http
 @inject NavigationManager Navigation
 @inject FollowService FollowService
 @inject LocalStorageService LocalStorage
 @inject PostService PostService
 
-<h3>პროფილი</h3>
-
 @if (!isLoaded)
 {
-    <p>იტვირთება...</p>
+    <p>Loading...</p>
 }
 else if (profile == null)
 {
-    <p>მომხმარებელი ვერ მოიძებნა!</p>
+    <p>User not found!</p>
 }
 else
 {
     <div class="profile-card">
-        <div class="profile-name">
-            @profile.DisplayName
-        </div>
-
-        <div class="profile-username">
-            @("@")@profile.UserName
-        </div>
+        <div class="profile-name">@profile.DisplayName</div>
+        <div class="profile-username">@("@")@profile.UserName</div>
 
         @if (!string.IsNullOrEmpty(profile.Bio))
         {
-            <p class="profile-bio">
-                @profile.Bio
-            </p>
+            <p class="profile-bio">@profile.Bio</p>
         }
 
         <div class="profile-stats">
-            <span>
-                <strong>@profile.PostsCount</strong> პოსტი
+            <span style="cursor:pointer;" @onclick="() => ToggleFollowersList()">
+                <strong>@followersCount</strong> Followers
+            </span>
+            <span style="cursor:pointer;" @onclick="() => ToggleFollowingList()">
+                <strong>@followingCount</strong> Following
             </span>
             <span>
-                <strong>@followersCount</strong> ფოლოუერი
-            </span>
-            <span>
-                მიჰყვება
-                <strong>@followingCount</strong>
+                <strong>@profile.PostsCount</strong> Posts
             </span>
         </div>
 
+        @if (showFollowers)
+        {
+            <div class="follow-dropdown">
+                <h5 style="margin:0.5rem 0;">Followers</h5>
+                @if (!followers.Any())
+                {
+                    <p style="color:var(--color-text-muted); font-size:0.85rem;">No followers yet</p>
+                }
+                @foreach (var f in followers)
+                {
+                    <div class="follow-list-item" style="cursor:pointer;" @onclick="() => GoToProfile(f)">@f</div>
+                }
+            </div>
+        }
+
+        @if (showFollowing)
+        {
+            <div class="follow-dropdown">
+                <h5 style="margin:0.5rem 0;">Following</h5>
+                @if (!following.Any())
+                {
+                    <p style="color:var(--color-text-muted); font-size:0.85rem;">Not following anyone yet</p>
+                }
+                @foreach (var f in following)
+                {
+                    <div class="follow-list-item" style="cursor:pointer;" @onclick="() => GoToProfile(f)">@f</div>
+                }
+            </div>
+        }
+
         @if (isOwnProfile)
         {
-            <button class="btn-pill btn-pill-follow" @onclick="EditMode">
-                @(isEditing ? "გაუქმება" : "პროფილის რედაქტირება")
+            <button class="btn-pill btn-pill-follow" @onclick="EditMode" style="margin-top:0.8rem;">
+                @(isEditing ? "Cancel" : "Edit Profile")
             </button>
 
             @if (isEditing)
             {
                 <div style="margin-top:1rem;">
-                    <input @bind="editDisplayName" placeholder="სახელი" style="display:block;margin-bottom:10px;" />
+                    <input @bind="editDisplayName" placeholder="Name" style="display:block;margin-bottom:10px;" />
                     <textarea @bind="editBio" placeholder="Bio" style="display:block;margin-bottom:10px;"></textarea>
-                    <button class="btn-pill btn-pill-follow" @onclick="SaveProfile">
-                        შენახვა
-                    </button>
+                    <button class="btn-pill btn-pill-follow" @onclick="SaveProfile">Save</button>
                 </div>
             }
         }
         else if (!string.IsNullOrEmpty(currentUserId))
         {
-            <button class="btn-pill @(isFollowing ? "btn-pill-following" : "btn-pill-follow")" @onclick="ToggleFollow">
+            <button class="btn-pill @(isFollowing ? "btn-pill-following" : "btn-pill-follow")"
+                    @onclick="ToggleFollow" style="margin-top:0.8rem;">
                 @(isFollowing ? "Unfollow" : "Follow")
             </button>
         }
     </div>
 
-    <h4 class="section-title">პოსტები:</h4>
+    <h4 class="section-title">Posts</h4>
 
     @foreach (var post in posts)
     {
@@ -100,7 +117,16 @@ else
                 @post.Content
             </p>
 
-            @if (!string.IsNullOrEmpty(post.ImageUrl))
+            @if (post.ImageUrls.Any())
+            {
+                <div class="post-images">
+                    @foreach (var imgUrl in post.ImageUrls)
+                    {
+                        <img src="@imgUrl" class="post-image" alt="post image" />
+                    }
+                </div>
+            }
+            else if (!string.IsNullOrEmpty(post.ImageUrl))
             {
                 <img src="@post.ImageUrl" class="post-image" alt="post image" />
             }
@@ -121,7 +147,7 @@ else
                     ❤️ @post.LikesCount
                 </button>
                 <button class="btn-pill btn-pill-outline" @onclick="() => OpenComments(post)">
-                    💬 კომენტარი
+                    💬 Comment
                 </button>
             </div>
 
@@ -136,28 +162,14 @@ else
                         </div>
                     }
                     <div class="comment-input-row">
-                        <input @bind="commentText" @onkeydown="HandleCommentKey" placeholder="დაწერე კომენტარი..." />
+                        <input @bind="commentText" @onkeydown="HandleCommentKey" placeholder="Write a comment..." />
                         <button class="btn-pill btn-pill-primary" @onclick="() => AddComment(post.Id)">
-                            გაგზავნა
+                            Send
                         </button>
                     </div>
                 </div>
             }
         </div>
-    }
-
-    <h4 class="section-title">ფოლოუერები:</h4>
-
-    @foreach (var f in followers)
-    {
-        <div class="follow-list-item">@f</div>
-    }
-
-    <h4 class="section-title">მიჰყვება:</h4>
-
-    @foreach (var f in following)
-    {
-        <div class="follow-list-item">@f</div>
     }
 }
 
@@ -181,6 +193,8 @@ else
     private Guid? selectedPostId;
     private string commentText = "";
     private List<CommentDto> comments = new();
+    private bool showFollowers = false;
+    private bool showFollowing = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -243,6 +257,23 @@ else
         }
     }
 
+    private void ToggleFollowersList()
+    {
+        showFollowers = !showFollowers;
+        if (showFollowers) showFollowing = false;
+    }
+
+    private void ToggleFollowingList()
+    {
+        showFollowing = !showFollowing;
+        if (showFollowing) showFollowers = false;
+    }
+
+    private void GoToProfile(string un)
+    {
+        Navigation.NavigateTo($"/profile/{un}");
+    }
+
     private void EditMode() => isEditing = !isEditing;
 
     private async Task ToggleFollow()
@@ -263,6 +294,7 @@ else
         }
 
         followers = await FollowService.GetFollowersAsync(profile.Id);
+        StateHasChanged();
     }
 
     private async Task SaveProfile()
@@ -289,6 +321,12 @@ else
 
     private async Task LikePost(PostDto post)
     {
+        if (string.IsNullOrEmpty(currentUserId))
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
         var result = await PostService.ToggleLikeAsync(post.Id);
         if (result)
         {
@@ -319,6 +357,12 @@ else
 
     private async Task AddComment(Guid postId)
     {
+        if (string.IsNullOrEmpty(currentUserId))
+        {
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
         if (string.IsNullOrWhiteSpace(commentText)) return;
         var result = await PostService.AddCommentAsync(postId, commentText);
         if (result)
