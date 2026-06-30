@@ -2,11 +2,15 @@
 @rendermode @(new InteractiveWebAssemblyRenderMode(prerender: false))
 @using SocialNet.Client.Client.Services
 @using Microsoft.AspNetCore.Components.Web
+@using Microsoft.AspNetCore.Components.Forms
 @inject HttpClient Http
 @inject NavigationManager Navigation
 @inject FollowService FollowService
 @inject LocalStorageService LocalStorage
 @inject PostService PostService
+@inject AdminService AdminService
+@inject IJSRuntime JS
+@implements IDisposable
 
 @if (!isLoaded)
 {
@@ -34,9 +38,7 @@ else
             <span style="cursor:pointer;" @onclick="() => ToggleFollowingList()">
                 <strong>@followingCount</strong> Following
             </span>
-            <span>
-                <strong>@profile.PostsCount</strong> Posts
-            </span>
+            <span><strong>@profile.PostsCount</strong> Posts</span>
         </div>
 
         @if (showFollowers)
@@ -74,7 +76,6 @@ else
             <button class="btn-pill btn-pill-follow" @onclick="EditMode" style="margin-top:0.8rem;">
                 @(isEditing ? "Cancel" : "Edit Profile")
             </button>
-
             @if (isEditing)
             {
                 <div style="margin-top:1rem;">
@@ -101,81 +102,201 @@ else
             <div style="display:flex; justify-content:space-between; align-items:center; padding:1rem 1.2rem 0.5rem;">
                 <span style="font-weight:600; font-size:15px; color:#fff;">@profile.DisplayName</span>
                 <div style="display:flex; align-items:center; gap:0.5rem;">
-                    <span style="font-size:12px; color:rgba(255,255,255,0.4);">@post.CreatedAt.ToString("dd/MM/yyyy HH:mm")</span>
+                    <span style="font-size:12px; color:rgba(255,255,255,0.4);">@post.CreatedAt.AddHours(4).ToString("dd/MM/yyyy HH:mm")</span>
                     @if (isOwnProfile)
                     {
+                        <button class="btn-pill btn-pill-outline"
+                                style="padding:0.2rem 0.7rem; font-size:0.8rem;"
+                                @onclick="() => StartEdit(post)">
+                            ✏️
+                        </button>
                         <button class="btn-pill btn-pill-outline"
                                 style="color:#F43F5E; border-color:#F43F5E; padding:0.2rem 0.7rem; font-size:0.8rem;"
                                 @onclick="() => DeletePost(post.Id)">
                             🗑️
                         </button>
                     }
-                </div>
-            </div>
-
-            <p class="post-content" style="margin:0; padding:0 1.2rem 0.75rem; color:rgba(255,255,255,0.85);">
-                @post.Content
-            </p>
-
-            @if (post.ImageUrls.Any())
-            {
-                <div class="post-images">
-                    @foreach (var imgUrl in post.ImageUrls)
+                    else if (isAdmin)
                     {
-                        <img src="@imgUrl" class="post-image" alt="post image" />
-                    }
-                </div>
-            }
-            else if (!string.IsNullOrEmpty(post.ImageUrl))
-            {
-                <img src="@post.ImageUrl" class="post-image" alt="post image" />
-            }
-
-            @if (post.Hashtags.Any())
-            {
-                <div class="post-hashtags">
-                    @foreach (var tag in post.Hashtags)
-                    {
-                        <span class="hashtag-badge">#@tag</span>
-                    }
-                </div>
-            }
-
-            <div class="post-actions">
-                <button class="btn-pill @(post.IsLikedByCurrentUser ? "btn-pill-liked" : "btn-pill-outline")"
-                        @onclick="() => LikePost(post)">
-                    ❤️ @post.LikesCount
-                </button>
-                <button class="btn-pill btn-pill-outline" @onclick="() => OpenComments(post)">
-                    💬 Comment
-                </button>
-            </div>
-
-            @if (selectedPostId == post.Id)
-            {
-                <div class="comments-section">
-                    @foreach (var c in comments)
-                    {
-                        <div class="comment-item">
-                            <span class="comment-author">@c.UserName:</span>
-                            <span>@c.Content</span>
-                        </div>
-                    }
-                    <div class="comment-input-row">
-                        <input @bind="commentText" @onkeydown="HandleCommentKey" placeholder="Write a comment..." />
-                        <button class="btn-pill btn-pill-primary" @onclick="() => AddComment(post.Id)">
-                            Send
+                        <button class="btn-pill btn-pill-outline"
+                                style="color:#F43F5E; border-color:#F43F5E; padding:0.2rem 0.7rem; font-size:0.8rem;"
+                                @onclick="() => AdminDeletePost(post.Id)">
+                            🗑️
                         </button>
+                    }
+                </div>
+            </div>
+
+            @if (editingPostId == post.Id)
+            {
+                <div style="padding:0.8rem 1.2rem;">
+                    <textarea @bind="editContent"
+                              style="width:100%; min-height:80px; background:var(--color-surface-2); color:var(--color-text); border:1px solid var(--color-border); border-radius:8px; padding:0.6rem; resize:vertical;"></textarea>
+                    <div style="margin-top:0.5rem;">
+                        <p style="font-size:0.85rem; color:var(--color-text-muted); margin-bottom:0.3rem;">ჰეშთეგები:</p>
+                        <div class="hashtag-options">
+                            @foreach (var tag in availableHashtags)
+                            {
+                                <button class="btn-pill @(editHashtags.Contains(tag) ? "btn-pill-primary" : "btn-pill-outline")"
+                                        @onclick="() => ToggleEditHashtag(tag)">
+                                    #@tag
+                                </button>
+                            }
+                        </div>
+                    </div>
+                    <div style="margin-top:0.6rem; display:flex; gap:0.5rem;">
+                        <button class="btn-pill btn-pill-primary" @onclick="() => SaveEdit(post.Id)">შენახვა</button>
+                        <button class="btn-pill btn-pill-outline" @onclick="CancelEdit">გაუქმება</button>
                     </div>
                 </div>
             }
+            else
+            {
+                <p class="post-content" style="margin:0; padding:0 1.2rem 0.75rem; color:rgba(255,255,255,0.85);">
+                    @post.Content
+                </p>
+            }
+
+            @if (post.ImageUrls.Any())
+            {
+                var visibleImages = post.ImageUrls.Take(3).ToList();
+                var extraCount = post.ImageUrls.Count - 3;
+                var isExpanded = expandedPostImages.Contains(post.Id);
+                var imagesToShow = isExpanded ? post.ImageUrls : visibleImages;
+
+                <div class="post-images">
+                    @for (int i = 0; i < imagesToShow.Count; i++)
+                    {
+                        var imgUrl = imagesToShow[i];
+                        var isLast = !isExpanded && i == 2 && extraCount > 0;
+                        var capturedId = post.Id;
+                        <div class="post-image-wrapper" style="cursor:pointer;"
+                             @onclick="() => {
+                             if (isLast) { expandedPostImages.Add(capturedId); StateHasChanged(); }
+                             else { expandedPostImage = imgUrl; StateHasChanged(); }
+                         }">
+                          <img src="@imgUrl" class="post-image"
+                               style="@(isLast ? "filter:brightness(0.35);" : "")" alt="post image" />
+                        @if (isLast)
+                        {
+                            <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+                                                            color:white; font-size:1.6rem; font-weight:700;
+                                                            pointer-events:none; text-shadow:0 2px 8px rgba(0,0,0,0.5);">
+                                +@extraCount
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        }
+
+        @if (!post.ImageUrls.Any() && !string.IsNullOrEmpty(post.ImageUrl))
+        {
+            <img src="@post.ImageUrl" class="post-image" alt="post image" />
+        }
+
+        @if (!string.IsNullOrEmpty(expandedPostImage))
+        {
+            <div style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:9999; display:flex; align-items:center; justify-content:center;"
+                 @onclick="@(() => { expandedPostImage = null; StateHasChanged(); })">
+                <img src="@expandedPostImage" style="max-width:90%; max-height:90%; border-radius:12px;" />
+            </div>
+        }
+
+        @if (post.Hashtags.Any())
+        {
+            <div class="post-hashtags">
+                @foreach (var tag in post.Hashtags)
+                {
+                    <span class="hashtag-badge">#@tag</span>
+                }
+            </div>
+        }
+
+        <div class="post-actions">
+            <button class="btn-pill @(post.IsLikedByCurrentUser ? "btn-pill-liked" : "btn-pill-outline")"
+                    @onclick="() => LikePost(post)">
+                ❤️ @post.LikesCount
+            </button>
+            <button class="btn-pill btn-pill-outline" @onclick="() => OpenComments(post)">💬 Comment</button>
         </div>
-    }
+
+        @if (selectedPostId == post.Id)
+        {
+            <div class="comments-section">
+                @foreach (var c in comments)
+                {
+                    <div class="comment-item">
+                        <span class="comment-author">@c.UserName:</span>
+                        <span>@c.Content</span>
+                        @if (c.ImageUrls.Any())
+                        {
+                            <div style="display:flex; flex-wrap:wrap; gap:0.4rem; margin-top:0.4rem;">
+                                @foreach (var imgUrl in c.ImageUrls)
+                                {
+                                    <img src="@imgUrl"
+                                         style="max-height:60px; max-width:80px; border-radius:6px; cursor:pointer; object-fit:cover;"
+                                         @onclick="@(() => { expandedCommentImage = imgUrl; StateHasChanged(); })" />
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+                <div class="comment-input-row">
+                    <input @bind="commentText" @onkeydown="HandleCommentKey" placeholder="Write a comment..." />
+                    <InputFile id="@($"profile-comment-img-{post.Id}")"
+                               OnChange="e => OnCommentImageSelected(e, post.Id)"
+                               accept="image/*" style="display:none;" />
+                    <label for="@($"profile-comment-img-{post.Id}")" class="btn-pill btn-pill-outline" style="cursor:pointer;">🖼️</label>
+                    <button class="btn-pill btn-pill-primary" @onclick="() => AddComment(post.Id)">გაგზავნა</button>
+                </div>
+                @if (commentImageUploading)
+                {
+                    <div style="margin-top:0.4rem; color:var(--color-text-muted); font-size:0.85rem;">⏳ იტვირთება...</div>
+                }
+                @if (commentImageUrls.Any())
+                {
+                    <div style="display:flex; flex-wrap:wrap; gap:0.4rem; margin-top:0.4rem;">
+                        @foreach (var (url, index) in commentImageUrls.Select((u, i) => (u, i)))
+                        {
+                            <div style="position:relative; display:inline-block;">
+                                <img src="@url" style="max-height:100px; border-radius:8px;" />
+                                <button @onclick="() => commentImageUrls.RemoveAt(index)"
+                                        style="position:absolute; top:-6px; right:-6px; background:#F43F5E; color:white; border:none; border-radius:50%; width:20px; height:20px; cursor:pointer; font-size:0.7rem;">
+                                    ✕
+                                </button>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+        }
+
+        @if (!string.IsNullOrEmpty(expandedCommentImage))
+        {
+            <div style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:9999; display:flex; align-items:center; justify-content:center;"
+                 @onclick="@(() => { expandedCommentImage = null; StateHasChanged(); })">
+                <img src="@expandedCommentImage" style="max-width:90%; max-height:90%; border-radius:12px;" />
+            </div>
+        }
+    </div>
 }
 
+@if (isLoadingMore)
+{
+    <p style="text-align:center; color:var(--color-text-muted); padding:1rem;">⏳ იტვირთება...</p>
+}
+
+@if (!hasMore && posts.Any())
+{
+    <p style="text-align:center; color:var(--color-text-muted); padding:1rem;">✅ ყველა პოსტი ჩაიტვირთა</p>
+}
+}
+
+<div @ref="scrollSentinel" style="height:1px;"></div>
+
 @code {
-    [Parameter]
-    public string? username { get; set; }
+    [Parameter] public string? username { get; set; }
 
     private UserProfileDto? profile;
     private List<PostDto> posts = new();
@@ -187,6 +308,7 @@ else
     private List<string> following = new();
     private string? currentUserId;
     private bool isOwnProfile = false;
+    private bool isAdmin = false;
     private bool isEditing = false;
     private string editDisplayName = "";
     private string editBio = "";
@@ -195,29 +317,62 @@ else
     private List<CommentDto> comments = new();
     private bool showFollowers = false;
     private bool showFollowing = false;
+    private List<string> commentImageUrls = new();
+    private bool commentImageUploading = false;
+    private string? expandedCommentImage = null;
+    private HashSet<Guid> expandedPostImages = new();
+    private string? expandedPostImage = null;
+
+    // რედაქტირება
+    private Guid? editingPostId = null;
+    private string editContent = "";
+    private HashSet<string> editHashtags = new();
+
+    private List<string> availableHashtags = new()
+    {
+        "Football", "Basketball", "Tennis", "Formula1",
+        "MMA", "Rugby", "Volleyball", "Handball"
+    };
+
+    // Infinite scroll
+    private int currentPage = 1;
+    private const int PageSize = 10;
+    private bool isLoadingMore = false;
+    private bool hasMore = true;
+    private ElementReference scrollSentinel;
+    private DotNetObjectReference<Profile>? objRef;
+
+    public void Dispose() => objRef?.Dispose();
 
     protected override async Task OnInitializedAsync()
     {
         if (username == null) return;
-
         try
         {
             currentUserId = await LocalStorage.GetItemAsync("userId");
             var token = await LocalStorage.GetItemAsync("token");
 
-            var profileTask = Http.GetFromJsonAsync<UserProfileDto>($"api/Users/{username}");
+            if (!string.IsNullOrEmpty(token))
+            {
+                try
+                {
+                    var payload = token.Split('.')[1];
+                    var padded = payload.PadRight(payload.Length + (4 - payload.Length % 4) % 4, '=');
+                    var json = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(padded));
+                    var role = System.Text.Json.JsonDocument.Parse(json)
+                        .RootElement
+                        .TryGetProperty("http://schemas.microsoft.com/ws/2008/06/identity/claims/role", out var r)
+                        ? r.GetString() : null;
+                    isAdmin = role == "Admin";
+                }
+                catch { isAdmin = false; }
+            }
 
-            var postsRequest = new HttpRequestMessage(HttpMethod.Get, $"api/Users/{username}/posts");
-            if (token != null)
-                postsRequest.Headers.Authorization =
-                    new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-            var postsResponse = await Http.SendAsync(postsRequest);
-            var postsTask = postsResponse.Content.ReadFromJsonAsync<List<PostDto>>();
+            profile = await Http.GetFromJsonAsync<UserProfileDto>($"api/Users/{username}");
 
-            await Task.WhenAll(profileTask, postsTask);
-
-            profile = profileTask.Result;
-            posts = postsTask.Result ?? new();
+            var firstPage = await PostService.GetUserPostsAsync(username!, 1, PageSize);
+            posts = firstPage ?? new();
+            hasMore = firstPage?.Count == PageSize;
 
             if (profile != null)
             {
@@ -227,13 +382,7 @@ else
                 var followersTask = FollowService.GetFollowersAsync(profile.Id);
                 var followingTask = FollowService.GetFollowingAsync(profile.Id);
 
-                await Task.WhenAll(
-                    isFollowingTask,
-                    followersCountTask,
-                    followingCountTask,
-                    followersTask,
-                    followingTask
-                );
+                await Task.WhenAll(isFollowingTask, followersCountTask, followingCountTask, followersTask, followingTask);
 
                 isFollowing = isFollowingTask.Result;
                 followersCount = followersCountTask.Result;
@@ -246,53 +395,78 @@ else
                 editBio = profile.Bio ?? "";
             }
         }
-        catch (Exception ex)
+        catch (Exception ex) { Console.WriteLine(ex.Message); profile = null; }
+        finally { isLoaded = true; }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && isLoaded && profile != null)
         {
-            Console.WriteLine(ex.Message);
-            profile = null;
+            objRef = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("initInfiniteScroll", scrollSentinel, objRef);
         }
-        finally
+    }
+
+    [JSInvokable]
+    public async Task LoadMore()
+    {
+        if (isLoadingMore || !hasMore || username == null) return;
+        isLoadingMore = true;
+        StateHasChanged();
+
+        currentPage++;
+        var newPosts = await PostService.GetUserPostsAsync(username, currentPage, PageSize);
+
+        if (newPosts == null || !newPosts.Any()) { hasMore = false; }
+        else
         {
-            isLoaded = true;
+            hasMore = newPosts.Count == PageSize;
+            foreach (var post in newPosts) posts.Add(post);
+        }
+
+        isLoadingMore = false;
+        StateHasChanged();
+    }
+
+    private void StartEdit(PostDto post)
+    {
+        editingPostId = post.Id;
+        editContent = post.Content;
+        editHashtags = new HashSet<string>(post.Hashtags);
+    }
+
+    private void CancelEdit() { editingPostId = null; editContent = ""; editHashtags = new(); }
+
+    private void ToggleEditHashtag(string tag)
+    {
+        if (editHashtags.Contains(tag)) editHashtags.Remove(tag);
+        else editHashtags.Add(tag);
+    }
+
+    private async Task SaveEdit(Guid postId)
+    {
+        if (string.IsNullOrWhiteSpace(editContent) || !editHashtags.Any()) return;
+        var result = await PostService.UpdatePostAsync(postId, editContent, editHashtags.ToList());
+        if (result)
+        {
+            var post = posts.FirstOrDefault(p => p.Id == postId);
+            if (post != null) { post.Content = editContent; post.Hashtags = editHashtags.ToList(); }
+            CancelEdit();
+            StateHasChanged();
         }
     }
 
-    private void ToggleFollowersList()
-    {
-        showFollowers = !showFollowers;
-        if (showFollowers) showFollowing = false;
-    }
-
-    private void ToggleFollowingList()
-    {
-        showFollowing = !showFollowing;
-        if (showFollowing) showFollowers = false;
-    }
-
-    private void GoToProfile(string un)
-    {
-        Navigation.NavigateTo($"/profile/{un}");
-    }
-
+    private void ToggleFollowersList() { showFollowers = !showFollowers; if (showFollowers) showFollowing = false; }
+    private void ToggleFollowingList() { showFollowing = !showFollowing; if (showFollowing) showFollowers = false; }
+    private void GoToProfile(string un) => Navigation.NavigateTo($"/profile/{un}");
     private void EditMode() => isEditing = !isEditing;
 
     private async Task ToggleFollow()
     {
         if (profile == null) return;
-
-        if (isFollowing)
-        {
-            await FollowService.UnFollowAsync(profile.Id);
-            isFollowing = false;
-            followersCount--;
-        }
-        else
-        {
-            await FollowService.FollowAsync(profile.Id);
-            isFollowing = true;
-            followersCount++;
-        }
-
+        if (isFollowing) { await FollowService.UnFollowAsync(profile.Id); isFollowing = false; followersCount--; }
+        else { await FollowService.FollowAsync(profile.Id); isFollowing = true; followersCount++; }
         followers = await FollowService.GetFollowersAsync(profile.Id);
         StateHasChanged();
     }
@@ -301,14 +475,8 @@ else
     {
         var token = await LocalStorage.GetItemAsync("token");
         var request = new HttpRequestMessage(HttpMethod.Put, "api/Users/me");
-        request.Headers.Authorization =
-            new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-        request.Content = JsonContent.Create(new
-        {
-            DisplayName = editDisplayName,
-            Bio = editBio
-        });
-
+        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        request.Content = JsonContent.Create(new { DisplayName = editDisplayName, Bio = editBio });
         var response = await Http.SendAsync(request);
         if (response.IsSuccessStatusCode)
         {
@@ -321,70 +489,69 @@ else
 
     private async Task LikePost(PostDto post)
     {
-        if (string.IsNullOrEmpty(currentUserId))
-        {
-            Navigation.NavigateTo("/login");
-            return;
-        }
-
+        if (string.IsNullOrEmpty(currentUserId)) { Navigation.NavigateTo("/login"); return; }
         var result = await PostService.ToggleLikeAsync(post.Id);
         if (result)
         {
-            if (post.IsLikedByCurrentUser)
-            {
-                post.LikesCount--;
-                post.IsLikedByCurrentUser = false;
-            }
-            else
-            {
-                post.LikesCount++;
-                post.IsLikedByCurrentUser = true;
-            }
+            if (post.IsLikedByCurrentUser) { post.LikesCount--; post.IsLikedByCurrentUser = false; }
+            else { post.LikesCount++; post.IsLikedByCurrentUser = true; }
             StateHasChanged();
         }
     }
 
     private async Task OpenComments(PostDto post)
     {
-        if (selectedPostId == post.Id)
-        {
-            selectedPostId = null;
-            return;
-        }
+        if (selectedPostId == post.Id) { selectedPostId = null; commentImageUrls = new(); return; }
         selectedPostId = post.Id;
+        commentImageUrls = new();
         comments = await PostService.GetCommentsAsync(post.Id) ?? new();
     }
 
     private async Task AddComment(Guid postId)
     {
-        if (string.IsNullOrEmpty(currentUserId))
-        {
-            Navigation.NavigateTo("/login");
-            return;
-        }
-
-        if (string.IsNullOrWhiteSpace(commentText)) return;
-        var result = await PostService.AddCommentAsync(postId, commentText);
+        if (string.IsNullOrEmpty(currentUserId)) { Navigation.NavigateTo("/login"); return; }
+        if (string.IsNullOrWhiteSpace(commentText) && !commentImageUrls.Any()) return;
+        var result = await PostService.AddCommentAsync(postId, commentText, commentImageUrls);
         if (result)
         {
             commentText = "";
+            commentImageUrls = new();
             comments = await PostService.GetCommentsAsync(postId) ?? new();
+            StateHasChanged();
         }
     }
 
     private async Task HandleCommentKey(KeyboardEventArgs e)
     {
-        if (e.Key == "Enter" && selectedPostId != null)
-            await AddComment(selectedPostId.Value);
+        if (e.Key == "Enter" && selectedPostId != null) await AddComment(selectedPostId.Value);
     }
 
     private async Task DeletePost(Guid postId)
     {
         var result = await PostService.DeletePostAsync(postId);
-        if (result)
+        if (result) { posts = posts.Where(p => p.Id != postId).ToList(); StateHasChanged(); }
+    }
+
+    private async Task AdminDeletePost(Guid postId)
+    {
+        var result = await AdminService.DeletePostAsync(postId);
+        if (result) { posts = posts.Where(p => p.Id != postId).ToList(); StateHasChanged(); }
+    }
+
+    private async Task OnCommentImageSelected(InputFileChangeEventArgs e, Guid postId)
+    {
+        var files = e.GetMultipleFiles(5);
+        commentImageUploading = true;
+        StateHasChanged();
+        try
         {
-            posts = posts.Where(p => p.Id != postId).ToList();
-            StateHasChanged();
+            foreach (var file in files)
+            {
+                using var stream = file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
+                var url = await PostService.UploadImageAsync(stream, file.Name);
+                if (url != null) commentImageUrls.Add(url);
+            }
         }
+        finally { commentImageUploading = false; StateHasChanged(); }
     }
 }

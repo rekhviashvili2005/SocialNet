@@ -22,19 +22,19 @@ public class PostsController : ControllerBase
         _postService = postService;
     }
 
-
     [HttpGet]
-    public async Task<IActionResult> GetAll()
+    public async Task<IActionResult> GetAll([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
     {
-        //var posts = await _postService.GetAllPostsAsync();
-        //return Ok(posts);
         var userId = User.FindFirstValue("uid");
-        var posts = await _postService.GetAllPostsAsync(userId);
+        var posts = await _postService.GetAllPostsAsync(userId, page, pageSize);
         return Ok(posts);
     }
 
 
-   
+
+
+
+
     [HttpGet("{id}")]
     public async Task<IActionResult> GetById(Guid id)
     {
@@ -87,33 +87,34 @@ public class PostsController : ControllerBase
         return Ok("პოსტი წაიშალა");
     }
 
-
     [HttpGet("hashtag/{tag}")]
-    public async Task<IActionResult> GetByHashtag(string tag)
+    public async Task<IActionResult> GetByHashtag(string tag, [FromQuery] int page = 1, [FromQuery] int pageSize = 10)
     {
-        //var posts = await _postService.GetPostsByHashtagAsync(tag);
-        //return Ok(posts);
         var userId = User.FindFirstValue("uid");
-        var posts = await _postService.GetPostsByHashtagAsync(tag, userId);
+        var posts = await _postService.GetPostsByHashtagAsync(tag, userId, page, pageSize);
         return Ok(posts);
     }
+
+
 
     [HttpGet("feed")]
-    public async Task<IActionResult> GetFeed()
+    public async Task<IActionResult> GetFeed([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
     {
         var userId = User.FindFirstValue("uid");
-        var posts = await _postService.GetFeedPostsAsync(userId);
+        var posts = await _postService.GetFeedPostsAsync(userId, page, pageSize);
         return Ok(posts);
     }
-
 
     [Authorize]
     [HttpGet("following")]
-    public async Task<IActionResult> GetFollowingPosts()
+    public async Task<IActionResult> GetFollowingPosts([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
     {
         var userId = User.FindFirstValue("uid");
         if (userId == null) return Unauthorized();
-        var posts = await _postService.GetFollowingPostsAsync(userId);
+        var posts = await _postService.GetFollowingPostsAsync(userId, page, pageSize);
         return Ok(posts);
     }
+
+
+
 }

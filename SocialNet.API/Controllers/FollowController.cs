@@ -42,12 +42,6 @@ namespace SocialNet.API.Controllers
             return Ok(new { message = "Unfollow " });
         }
 
-        //[HttpGet("{targetUserId}/following-count")]
-        //public async Task<IActionResult> GetFollowingCount(string targetUserId)
-        //{
-        //    var count = await _followService.GetFollowingCountAsync(targetUserId);
-        //    return Ok(count);
-        //}
 
         [AllowAnonymous]
         [HttpGet("{targetUserId}/following-count")]
@@ -71,13 +65,6 @@ namespace SocialNet.API.Controllers
             return Ok(result);
         }
 
-
-        //[HttpGet("{targetUserId}/followers-count")]
-        //public async Task<IActionResult> GetFollowersCount(string targetUserId)
-        //{
-        //    var count = await _followService.GetFollowersCountAsync(targetUserId);
-        //    return Ok(count);
-        //}
         [AllowAnonymous]
         [HttpGet("{targetUserId}/followers-count")]
         public async Task<IActionResult> GetFollowersCount(string targetUserId)

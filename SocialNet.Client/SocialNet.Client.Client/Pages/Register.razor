@@ -61,6 +61,16 @@
                    style="width:100%; box-sizing:border-box; background:rgba(255,255,255,0.05); border:0.5px solid rgba(255,255,255,0.12); border-radius:10px; padding:12px 14px; font-size:15px; color:#fff; outline:none;" />
         </div>
 
+        <!-- Terms checkbox -->
+        <div style="margin-top:16px; display:flex; align-items:flex-start; gap:8px;">
+            <input @bind="agreedToTerms" type="checkbox" id="termsCheck"
+                   style="margin-top:3px; width:16px; height:16px; accent-color:#6366f1; cursor:pointer; flex-shrink:0;" />
+            <label for="termsCheck" style="font-size:13px; color:rgba(255,255,255,0.55); line-height:1.4; cursor:pointer;">
+                ვეთანხმები
+                <a href="/terms" target="_blank" style="color:#818cf8; text-decoration:none; font-weight:500;">წესებსა და პირობებს</a>
+            </label>
+        </div>
+
         <!-- Submit -->
         <button @onclick="HandleRegister"
                 style="width:100%; margin-top:18px; padding:13px; background:linear-gradient(135deg,#6366f1,#8b5cf6); color:#fff; font-size:15px; font-weight:500; border:none; border-radius:10px; cursor:pointer; letter-spacing:0.2px;">
@@ -86,6 +96,7 @@
     private string displayName = "";
     private string email = "";
     private string password = "";
+    private bool agreedToTerms = false;
     private string errorMessage = "";
     private string successMessage = "";
 
@@ -93,6 +104,12 @@
     {
         errorMessage = "";
         successMessage = "";
+
+        if (!agreedToTerms)
+        {
+            errorMessage = "გასაგრძელებლად უნდა დაეთანხმოთ წესებსა და პირობებს!";
+            return;
+        }
 
         var result = await AuthService.RegisterAsync(userName, email, password, displayName);
         if (!result)

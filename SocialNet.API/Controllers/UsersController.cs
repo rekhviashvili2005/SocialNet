@@ -43,23 +43,13 @@ namespace SocialNet.API.Controllers
 
         }
 
-
-        //[HttpGet("{username}/posts")]
-        //public async Task<IActionResult> GetUserPosts(string username)
-        //{
-        //    var posts = await _userService.GetUserPostsAsync(username);
-        //    return Ok(posts);
-        //}
-
-
         [HttpGet("{username}/posts")]
-        public async Task<IActionResult> GetUserPosts(string username)
+        public async Task<IActionResult> GetUserPosts(string username, [FromQuery] int page = 1, [FromQuery] int pageSize = 10)
         {
             var currentUserId = User.FindFirstValue("uid");
-            var posts = await _userService.GetUserPostsAsync(username, currentUserId);
+            var posts = await _userService.GetUserPostsAsync(username, currentUserId, page, pageSize);
             return Ok(posts);
         }
-
 
 
         [HttpGet("search")]
@@ -67,6 +57,15 @@ namespace SocialNet.API.Controllers
         {
             if (string.IsNullOrWhiteSpace(query)) return Ok(new List<UserSearchDto>());
             var users = await _userService.SearchUsersAsync(query);
+            return Ok(users);
+        }
+
+        [Authorize]
+        [HttpGet("suggested")]
+        public async Task<IActionResult> GetSuggested([FromQuery] int count = 5)
+        {
+            var currentUserId = User.FindFirstValue("uid");
+            var users = await _userService.GetSuggestedUsersAsync(currentUserId, count);
             return Ok(users);
         }
 

@@ -75,16 +75,6 @@ else
         }
     }
 
-    // private async Task MarkRead(NotificationDto n)
-    // {
-    //     if (!n.IsRead)
-    //     {
-    //         await NotificationService.MarkAsReadAsync(n.Id);
-    //         n.IsRead = true;
-    //         StateHasChanged();
-    //     }
-    // }
-
     private async Task MarkRead(NotificationDto n)
     {
         if (!n.IsRead)
@@ -95,13 +85,7 @@ else
         Navigation.NavigateTo($"/post/{n.PostId}");
     }
 
-    // private async Task MarkAllRead()
-    // {
-    //     await NotificationService.MarkAllAsReadAsync();
-    //     foreach (var n in notificationList)
-    //         n.IsRead = true;
-    //     StateHasChanged();
-    // }
+
     private async Task MarkAllRead()
     {
         await NotificationService.MarkAllAsReadAsync();

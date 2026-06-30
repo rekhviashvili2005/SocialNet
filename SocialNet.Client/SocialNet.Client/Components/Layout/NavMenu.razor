@@ -1,31 +1,71 @@
 ﻿
-
 @using SocialNet.Client.Client.Services
 @using SocialNet.Client.Client.Components
 @inject NavigationManager Navigation
+@inject LocalStorageService LocalStorage
 
 <div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
-        <a class="navbar-brand" href="">SocialNet</a>
+        <a class="navbar-brand" href="feed">SocialNet</a>
     </div>
 </div>
-
 <input type="checkbox" title="Navigation menu" class="navbar-toggler" />
-
 <div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
     <nav class="nav flex-column">
-        <div class="nav-item px-3">
+        @* <div class="nav-item px-3">
             <NavLink class="nav-link" href="" Match="NavLinkMatch.All">მთავარი</NavLink>
-        </div>
+        </div> *@
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="feed">Feed</NavLink>
         </div>
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="notifications">
-                 Notifications
-                <NotificationBadge />
+                Notifications
+                <NotificationBadge /> 
+
             </NavLink>
         </div>
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="terms">წესები</NavLink>
+        </div>
+        @if (isAdmin)
+        {
+            <div class="nav-item px-3">
+                <NavLink class="nav-link" href="admin">⚙️ Admin Panel</NavLink>
+            </div>
+        }
         <NavAuthButtons />
     </nav>
 </div>
+
+@code {
+    private bool isAdmin = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var token = await LocalStorage.GetItemAsync("token");
+            if (!string.IsNullOrEmpty(token))
+            {
+                try
+                {
+                    var payload = token.Split('.')[1];
+                    var padded = payload.PadRight(payload.Length + (4 - payload.Length % 4) % 4, '=');
+                    var json = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(padded));
+                    var role = System.Text.Json.JsonDocument.Parse(json)
+                        .RootElement
+                        .TryGetProperty("http://schemas.microsoft.com/ws/2008/06/identity/claims/role", out var r)
+                        ? r.GetString() : null;
+
+                    isAdmin = role == "Admin";
+                    StateHasChanged();
+                }
+                catch
+                {
+                    isAdmin = false;
+                }
+            }
+        }
+    }
+}

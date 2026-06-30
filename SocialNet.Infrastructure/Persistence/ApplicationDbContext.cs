@@ -37,6 +37,8 @@ namespace SocialNet.Infrastructure.Persistence
 
         public DbSet<CommentImage> CommentImages => Set<CommentImage>();
 
+        public DbSet<BlacklistedToken> BlacklistedTokens => Set<BlacklistedToken>();
+
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);

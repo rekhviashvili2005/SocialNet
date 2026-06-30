@@ -1,4 +1,4 @@
-﻿using SocialNet.Client.Client.Pages;
+﻿//using SocialNet.Client.Client.Pages;
 using SocialNet.Client.Components;
 using SocialNet.Client.Client.Services;
 
@@ -21,6 +21,9 @@ builder.Services.AddScoped<FollowService>(); //
 
 builder.Services.AddScoped<NotificationService>();
 
+builder.Services.AddScoped<AdminService>();
+
+builder.Services.AddScoped<UserService>();
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())

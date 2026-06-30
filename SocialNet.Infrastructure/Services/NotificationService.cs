@@ -20,28 +20,6 @@ public class NotificationService : INotificationService
         _context = context;
         _userManager = userManager;
     }
-
-    //public async Task CreateLikeNotificationAsync(Guid postId, string actorId)
-    //{
-    //    var post = await _context.Posts.FindAsync(postId);
-    //    if (post == null || post.UserId == actorId) return;
-
-    //    var actor = await _userManager.FindByIdAsync(actorId);
-
-    //    var notification = new Notification
-    //    {
-    //        UserId = post.UserId,
-    //        ActorId = actorId,
-    //        Type = "like",
-    //        PostId = postId,
-    //        Message = $"{actor?.UserName} liked your post",
-    //        CreatedAt = DateTime.UtcNow
-    //    };
-
-    //    _context.Notifications.Add(notification);
-    //    await _context.SaveChangesAsync();
-    //}
-
     public async Task CreateLikeNotificationAsync(Guid postId, string actorId)
     {
         var post = await _context.Posts.FindAsync(postId);
@@ -67,30 +45,6 @@ public class NotificationService : INotificationService
         await _context.SaveChangesAsync();
     }
 
-    //public async Task CreateCommentNotificationAsync(Guid postId, string actorId, string commentContent)
-    //{
-    //    var post = await _context.Posts.FindAsync(postId);
-    //    if (post == null || post.UserId == actorId) return;
-
-    //    var actor = await _userManager.FindByIdAsync(actorId);
-
-    //    var preview = commentContent.Length > 30
-    //        ? commentContent.Substring(0, 30) + "..."
-    //        : commentContent;
-
-    //    var notification = new Notification
-    //    {
-    //        UserId = post.UserId,
-    //        ActorId = actorId,
-    //        Type = "comment",
-    //        PostId = postId,
-    //        Message = $"{actor?.UserName} commented: \"{preview}\"",
-    //        CreatedAt = DateTime.UtcNow
-    //    };
-
-    //    _context.Notifications.Add(notification);
-    //    await _context.SaveChangesAsync();
-    //}
 
     public async Task CreateCommentNotificationAsync(Guid postId, string actorId, string commentContent)
     {

@@ -1,0 +1,218 @@
+﻿@page "/admin"
+@rendermode InteractiveWebAssembly
+@using SocialNet.Client.Client.Services
+@inject AdminService AdminService
+@inject LocalStorageService LocalStorage
+@inject NavigationManager Navigation
+
+@if (!isLoaded)
+{
+    <p>იტვირთება...</p>
+}
+else if (!isAdmin)
+{
+    <p style="color:red;">წვდომა აკრძალულია!</p>
+}
+else
+{
+    <h3 style="margin-bottom:1.5rem; color:var(--color-primary);">⚙️ Admin Panel</h3>
+
+    <!-- მომხმარებლები -->
+    <div class="profile-card" style="margin-bottom:1.5rem;">
+        <h4 style="margin-bottom:1rem;">მომხმარებლები (@users.Count)</h4>
+
+        @foreach (var user in users)
+        {
+            <div style="display:flex; align-items:center; justify-content:space-between;
+                                padding:0.8rem; border:1px solid var(--color-border);
+                                border-radius:12px; margin-bottom:0.6rem;
+                                background:var(--color-surface-2);">
+                <div>
+
+
+
+                    <div style="font-weight:600; cursor:pointer;"
+                         @onclick='() => Navigation.NavigateTo("/profile/" + user.UserName)'>
+                        @user.DisplayName
+                        @if (user.IsBanned)
+                        {
+                            <span style="color:#F43F5E; font-size:0.75rem; margin-left:0.5rem;">🚫 დაბლოკილი</span>
+                        }
+                    </div>
+
+
+
+
+
+                    <div style="font-size:0.8rem; color:var(--color-text-muted);">
+                        @("@")@user.UserName · @user.Email
+                    </div>
+                    @if (!string.IsNullOrEmpty(user.Bio))
+                    {
+                        <div style="font-size:0.8rem; color:var(--color-text-muted); margin-top:0.2rem;">
+                            @user.Bio
+                        </div>
+                    }
+                </div>
+
+                <div style="display:flex; gap:0.5rem; flex-wrap:wrap; justify-content:flex-end;">
+                    @if (user.IsBanned)
+                    {
+                        <button class="btn-pill btn-pill-outline"
+                                style="font-size:0.8rem; color:#10B981; border-color:#10B981;"
+                                @onclick="() => UnbanUser(user.Id)">
+                            ✅ განბლოკვა
+                        </button>
+                    }
+                    else
+                    {
+                        <button class="btn-pill btn-pill-outline"
+                                style="font-size:0.8rem; color:#F59E0B; border-color:#F59E0B;"
+                                @onclick="() => BanUser(user.Id)">
+                            🚫 დაბლოკვა
+                        </button>
+                    }
+                    <button class="btn-pill btn-pill-outline"
+                            style="font-size:0.8rem; color:#F43F5E; border-color:#F43F5E;"
+                            @onclick="() => DeleteUser(user.Id)">
+                        🗑️ წაშლა
+                    </button>
+                    <button class="btn-pill btn-pill-outline"
+                            style="font-size:0.8rem; color:var(--color-primary); border-color:var(--color-primary);"
+                            @onclick="() => ToggleUserPosts(user.Id)">
+                        📄 პოსტები
+                    </button>
+                </div>
+            </div>
+
+            <!-- მომხმარებლის პოსტები -->
+            @if (expandedUserId == user.Id && userPosts.Any())
+            {
+                <div style="margin-left:1rem; margin-bottom:0.8rem;">
+                    @foreach (var post in userPosts)
+                    {
+                        <div style="display:flex; align-items:center; justify-content:space-between;
+                                                    padding:0.6rem 0.8rem; border:1px solid var(--color-border);
+                                                    border-radius:10px; margin-bottom:0.4rem;
+                                                    background:var(--color-bg);">
+                            <div>
+                                <div style="font-size:0.85rem; color:var(--color-text);">
+                                    @(post.Content.Length > 80 ? post.Content[..80] + "..." : post.Content)
+                                </div>
+                                <div style="font-size:0.75rem; color:var(--color-text-muted); margin-top:0.2rem;">
+                                    @post.CreatedAt.ToString("dd/MM/yyyy HH:mm")
+                                </div>
+                            </div>
+                            <button class="btn-pill btn-pill-outline"
+                                    style="font-size:0.8rem; color:#F43F5E; border-color:#F43F5E;"
+                                    @onclick="() => DeletePost(post.Id)">
+                                🗑️ წაშლა
+                            </button>
+                        </div>
+                    }
+                </div>
+            }
+        }
+    </div>
+}
+
+@code {
+    private List<AdminUserDto> users = new();
+    private List<AdminPostDto> userPosts = new();
+    private string? expandedUserId = null;
+    private bool isLoaded = false;
+    private bool isAdmin = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var token = await LocalStorage.GetItemAsync("token");
+            if (string.IsNullOrEmpty(token))
+            {
+                Navigation.NavigateTo("/login");
+                return;
+            }
+
+            try
+            {
+                var payload = token.Split('.')[1];
+                var padded = payload.PadRight(payload.Length + (4 - payload.Length % 4) % 4, '=');
+                var json = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(padded));
+                var role = System.Text.Json.JsonDocument.Parse(json)
+                    .RootElement
+                    .TryGetProperty("http://schemas.microsoft.com/ws/2008/06/identity/claims/role", out var r)
+                    ? r.GetString() : null;
+
+                if (role != "Admin")
+                {
+                    isLoaded = true;
+                    isAdmin = false;
+                    StateHasChanged();
+                    return;
+                }
+
+                isAdmin = true;
+                users = await AdminService.GetAllUsersAsync();
+            }
+            catch
+            {
+                isAdmin = false;
+            }
+
+            isLoaded = true;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ToggleUserPosts(string userId)
+    {
+        if (expandedUserId == userId)
+        {
+            expandedUserId = null;
+            userPosts = new();
+        }
+        else
+        {
+            expandedUserId = userId;
+            userPosts = await AdminService.GetUserPostsAsync(userId);
+        }
+        StateHasChanged();
+    }
+
+    private async Task DeletePost(Guid postId)
+    {
+        var result = await AdminService.DeletePostAsync(postId);
+        if (result)
+        {
+            userPosts = userPosts.Where(p => p.Id != postId).ToList();
+            StateHasChanged();
+        }
+    }
+
+    private async Task BanUser(string userId)
+    {
+        await AdminService.BanUserAsync(userId);
+        var user = users.FirstOrDefault(u => u.Id == userId);
+        if (user != null) user.IsBanned = true;
+        StateHasChanged();
+    }
+
+    private async Task UnbanUser(string userId)
+    {
+        await AdminService.UnbanUserAsync(userId);
+        var user = users.FirstOrDefault(u => u.Id == userId);
+        if (user != null) user.IsBanned = false;
+        StateHasChanged();
+    }
+
+    private async Task DeleteUser(string userId)
+    {
+        var result = await AdminService.DeleteUserAsync(userId);
+        if (result)
+        {
+            users = users.Where(u => u.Id != userId).ToList();
+            StateHasChanged();
+        }
+    }
+}

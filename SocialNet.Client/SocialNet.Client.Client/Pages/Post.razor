@@ -17,10 +17,6 @@ else
 {
     <div class="post-card">
         <div class="post-card-header">
-            @* <span class="post-author" style="cursor:pointer;"
-                  @onclick='() => Navigation.NavigateTo($"/profile/{post.UserName}")'>
-                @post.UserName
-            </span> *@
             <span class="post-author clickable"
                   @onclick='() => Navigation.NavigateTo($"/profile/{post.UserName}")'>
                 @post.UserName

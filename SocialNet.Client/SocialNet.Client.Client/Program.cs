@@ -32,4 +32,9 @@ builder.Services.AddScoped<FollowService>();
 builder.Services.AddScoped<NotificationService>();
 
 
+builder.Services.AddScoped<AdminService>();
+
+
+
+
 await builder.Build().RunAsync();

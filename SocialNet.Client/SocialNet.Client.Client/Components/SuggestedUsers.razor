@@ -1,0 +1,62 @@
+﻿
+
+@using SocialNet.Client.Client.Services
+@inject UserService UserService
+@inject NavigationManager Navigation
+@inject LocalStorageService LocalStorage
+@rendermode InteractiveWebAssembly
+
+@if (suggestedUsers.Any())
+{
+    <div class="suggested-card">
+        <h4 class="suggested-title">აქტიური მომხარებლები</h4>
+        @foreach (var user in suggestedUsers)
+        {
+            <div class="suggested-user-row">
+                <div class="suggested-avatar">
+                    @if (!string.IsNullOrEmpty(user.AvatarUrl))
+                    {
+                        <img src="@user.AvatarUrl" alt="avatar" />
+                    }
+                    else
+                    {
+                        <div class="suggested-avatar-placeholder">
+                            @user.UserName[0].ToString().ToUpper()
+                        </div>
+                    }
+                </div>
+                <div class="suggested-info" @onclick="() => GoToProfile(user.UserName)"
+                     style="cursor:pointer;">
+                    <span class="suggested-displayname">@user.DisplayName</span>
+                    <span class="suggested-username">@("@")@user.UserName</span>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@code {
+    private List<SuggestedUserDto> suggestedUsers = new();
+    private bool loaded = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !loaded)
+        {
+            loaded = true;
+
+            // მხოლოდ feed გვერდზე ჩაიტვირთოს
+            if (!Navigation.Uri.Contains("/feed"))
+                return;
+
+            var token = await LocalStorage.GetItemAsync("token");
+            suggestedUsers = await UserService.GetSuggestedUsersAsync(5, token);
+            StateHasChanged();
+        }
+    }
+
+    private void GoToProfile(string username)
+    {
+        Navigation.NavigateTo($"/profile/{username}");
+    }
+}

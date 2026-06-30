@@ -26,19 +26,20 @@ public class PostService
         }
     }
 
-    public async Task<List<PostDto>?> GetAllPostsAsync()
+
+    public async Task<List<PostDto>?> GetAllPostsAsync(int page = 1, int pageSize = 10)
     {
         await SetAuthHeader();
-        return await _httpClient.GetFromJsonAsync<List<PostDto>>("api/Posts");
+        return await _httpClient.GetFromJsonAsync<List<PostDto>>($"api/Posts?page={page}&pageSize={pageSize}");
+    }
+    public async Task<List<PostDto>?> GetPostsByHashtagAsync(string tag, int page = 1, int pageSize = 10)
+    {
+        await SetAuthHeader();
+        return await _httpClient.GetFromJsonAsync<List<PostDto>>($"api/Posts/hashtag/{tag}?page={page}&pageSize={pageSize}");
     }
 
-  
-    public async Task<List<PostDto>?> GetPostsByHashtagAsync(string tag)
-    {
-        await SetAuthHeader();
-        return await _httpClient
-            .GetFromJsonAsync<List<PostDto>>($"api/Posts/hashtag/{tag}");
-    }
+
+
 
 
     public async Task<bool> CreatePostAsync(string content, List<string> hashtags, string? imageUrl = null, List<string>? imageUrls = null)
@@ -60,34 +61,6 @@ public class PostService
             .GetFromJsonAsync<List<CommentDto>>($"api/Comment/{postId}");
     }
 
-    //public async Task<bool> AddCommentAsync(Guid postId, string content)
-    //{
-    //    await SetAuthHeader();
-
-    //    var response = await _httpClient.PostAsJsonAsync("api/Comment", new
-    //    {
-    //        content = content,
-    //        postId = postId
-    //    });
-
-    //    return response.IsSuccessStatusCode;
-
-    //}
-
-
-    //public async Task<bool> AddCommentAsync(Guid postId, string content, string? imageUrl = null)
-    //{
-    //    await SetAuthHeader();
-
-    //    var response = await _httpClient.PostAsJsonAsync("api/Comment", new
-    //    {
-    //        content = content,
-    //        postId = postId,
-    //        imageUrl = imageUrl
-    //    });
-
-    //    return response.IsSuccessStatusCode;
-    //}
     public async Task<bool> AddCommentAsync(Guid postId, string content, List<string>? imageUrls = null)
     {
         await SetAuthHeader();
@@ -153,19 +126,18 @@ public class PostService
         return urls;
     }
 
-
-    public async Task<List<PostDto>?> GetFeedPostsAsync()
+    public async Task<List<PostDto>?> GetFeedPostsAsync(int page = 1, int pageSize = 10)
     {
         await SetAuthHeader();
-        return await _httpClient.GetFromJsonAsync<List<PostDto>>("api/Posts/feed");
+        return await _httpClient.GetFromJsonAsync<List<PostDto>>($"api/Posts/feed?page={page}&pageSize={pageSize}");
     }
 
-    public async Task<List<PostDto>?> GetFollowingPostsAsync()
+
+    public async Task<List<PostDto>?> GetFollowingPostsAsync(int page = 1, int pageSize = 10)
     {
         await SetAuthHeader();
-        return await _httpClient.GetFromJsonAsync<List<PostDto>>("api/Posts/following");
+        return await _httpClient.GetFromJsonAsync<List<PostDto>>($"api/Posts/following?page={page}&pageSize={pageSize}");
     }
-
 
 
     public async Task<PostDto?> GetPostByIdAsync(Guid id)
@@ -176,6 +148,29 @@ public class PostService
             return await _httpClient.GetFromJsonAsync<PostDto>($"api/Posts/{id}");
         }
         catch { return null; }
+    }
+
+
+
+    public async Task<List<PostDto>?> GetUserPostsAsync(string username, int page = 1, int pageSize = 10)
+    {
+        await SetAuthHeader();
+        return await _httpClient.GetFromJsonAsync<List<PostDto>>($"api/Users/{username}/posts?page={page}&pageSize={pageSize}");
+    }
+
+
+
+
+    public async Task<bool> UpdatePostAsync(Guid postId, string content, List<string> hashtags, List<string>? imageUrls = null)
+    {
+        await SetAuthHeader();
+        var response = await _httpClient.PutAsJsonAsync($"api/Posts/{postId}", new
+        {
+            content = content,
+            imageUrls = imageUrls ?? new List<string>(),
+            hashtags = hashtags
+        });
+        return response.IsSuccessStatusCode;
     }
 }
 

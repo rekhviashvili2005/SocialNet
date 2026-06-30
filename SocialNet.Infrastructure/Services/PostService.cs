@@ -20,17 +20,22 @@ public class PostService : IPostService
         _context = context;
         _userManager = userManager;
     }
-
-    public async Task<List<PostDto>> GetAllPostsAsync(string? userId = null)
+    public async Task<List<PostDto>> GetAllPostsAsync(string? userId = null, int page = 1, int pageSize = 10)
     {
         var posts = await _context.Posts
             .Include(p => p.Hashtags)
             .Include(p => p.Images)
             .OrderByDescending(p => p.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync();
 
         return await MapPostsToDto(posts, userId);
     }
+
+
+
+
     //public async Task<PostDto?> GetPostByIdAsync(Guid id)
     public async Task<PostDto?> GetPostByIdAsync(Guid id, string? userId = null)
     {
@@ -128,21 +133,22 @@ public class PostService : IPostService
         return true;
     }
 
-    public async Task<List<PostDto>> GetPostsByHashtagAsync(string tag, string? userId = null)
+    public async Task<List<PostDto>> GetPostsByHashtagAsync(string tag, string? userId = null, int page = 1, int pageSize = 10)
     {
         var posts = await _context.Posts
             .Include(p => p.Hashtags)
             .Include(p => p.Images)
             .Where(p => p.Hashtags.Any(h => h.Tag == tag))
             .OrderByDescending(p => p.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync();
 
         return await MapPostsToDto(posts, userId);
     }
 
-    public async Task<List<PostDto>> GetFollowingPostsAsync(string userId)
+    public async Task<List<PostDto>> GetFollowingPostsAsync(string userId, int page = 1, int pageSize = 10)
     {
-        // ვინ გვყავს დაფოლოვებული
         var followingIds = await _context.Follows
             .Where(f => f.FollowerId == userId)
             .Select(f => f.FollowingId)
@@ -153,32 +159,30 @@ public class PostService : IPostService
             .Include(p => p.Images)
             .Where(p => followingIds.Contains(p.UserId))
             .OrderByDescending(p => p.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync();
 
         return await MapPostsToDto(posts, userId);
     }
 
-    public async Task<List<PostDto>> GetFeedPostsAsync(string userId)
-    {
-        var followingIds = await _context.Follows
-            .Where(f => f.FollowerId == userId)
-            .Select(f => f.FollowingId)
-            .ToListAsync();
 
+
+    public async Task<List<PostDto>> GetFeedPostsAsync(string userId, int page = 1, int pageSize = 10)
+    {
         var posts = await _context.Posts
             .Include(p => p.Hashtags)
             .Include(p => p.Images)
             .OrderByDescending(p => p.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync();
 
-        // დაფოლოვებულების პოსტები პირველ ადგილზე
-        var orderedPosts = posts
-            .OrderByDescending(p => followingIds.Contains(p.UserId))
-            .ThenByDescending(p => p.CreatedAt)
-            .ToList();
-
-        return await MapPostsToDto(orderedPosts, userId);
+        return await MapPostsToDto(posts, userId);
     }
+
+
+
 
     // helper მეთოდი — კოდის გამეორების თავიდან ასაცილებლად
     private async Task<List<PostDto>> MapPostsToDto(List<Post> posts, string? userId = null)
@@ -215,5 +219,16 @@ public class PostService : IPostService
             Hashtags = post.Hashtags.Select(h => h.Tag).ToList(),
             IsLikedByCurrentUser = likedPostIds.Contains(post.Id)
         }).ToList();
+    }
+
+
+    public async Task<bool> AdminDeletePostAsync(Guid id)
+    {
+        var post = await _context.Posts.FindAsync(id);
+        if (post == null) return false;
+
+        _context.Posts.Remove(post);
+        await _context.SaveChangesAsync();
+        return true;
     }
 }
